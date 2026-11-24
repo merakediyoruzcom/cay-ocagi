@@ -1,0 +1,4697 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1c110a">
+<title>Çay Ocağı - 3D Çarşı Çay Ocağı İşletme Oyunu</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  * {
+    box-sizing: border-box; margin: 0; padding: 0;
+    user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1c110a; color: #f7ead7;
+    overscroll-behavior: none; touch-action: manipulation;
+  }
+  #canvas-container {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+    touch-action: none;
+  }
+  #canvas-container canvas { touch-action: none; display: block; }
+  #ui-layer {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
+    pointer-events: none;
+  }
+  /* HUD Sol Üst */
+  #hud-top-left {
+    position: absolute; top: 16px; left: 18px;
+    background: linear-gradient(135deg, rgba(42, 23, 12, 0.93), rgba(24, 12, 6, 0.93));
+    border: 2px solid #c88a4b; border-radius: 13px;
+    padding: 10px 18px; box-shadow: 0 6px 22px rgba(0,0,0,0.62);
+    pointer-events: auto; min-width: 210px;
+  }
+  #hud-top-left h1 {
+    font-size: 24px; font-weight: 800; color: #ffca7a;
+    letter-spacing: 0.4px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .left-meta {
+    margin-top: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  #hud-top-left .day-badge {
+    font-size: 14px; font-weight: 700; color: #f3d6b1;
+  }
+  .wallet-badge {
+    font-size: 13px; font-weight: 800; color: #ffd966;
+    background: rgba(255, 198, 66, 0.14); border: 1px solid rgba(255, 206, 92, 0.45);
+    border-radius: 8px; padding: 2px 8px;
+  }
+  .combo-badge {
+    margin-top: 6px; font-size: 13px; font-weight: 900; color: #fff;
+    background: linear-gradient(135deg, #e85d04, #d00000);
+    border: 1px solid #ffd166; border-radius: 8px;
+    padding: 3px 9px; display: inline-flex; align-items: center; gap: 5px;
+    box-shadow: 0 0 12px rgba(255, 115, 25, 0.55);
+    animation: comboPulse 0.9s ease-in-out infinite alternate;
+  }
+  @keyframes comboPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.04); }
+  }
+  .record-mini {
+    margin-top: 4px; font-size: 11px; color: #b89470;
+  }
+
+  /* HUD Sağ Üst */
+  #hud-top-right-wrap {
+    position: absolute; top: 16px; right: 18px;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+  }
+  #hud-top-right {
+    background: linear-gradient(135deg, rgba(42, 23, 12, 0.93), rgba(24, 12, 6, 0.93));
+    border: 2px solid #c88a4b; border-radius: 13px;
+    padding: 10px 18px; box-shadow: 0 6px 22px rgba(0,0,0,0.62);
+    display: flex; gap: 20px; align-items: center;
+    pointer-events: auto;
+  }
+  .hud-stat {
+    display: flex; flex-direction: column; align-items: flex-end;
+  }
+  .hud-stat .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #caa57c;
+  }
+  .hud-stat .val {
+    font-size: 18px; font-weight: 800; color: #fff2de; margin-top: 2px;
+  }
+  .hud-stat .val.highlight { color: #85e868; }
+  .hud-stat .val.time-warn { color: #ff6b52; animation: comboPulse 0.55s ease-in-out infinite alternate; }
+  .goal-bar-track {
+    width: 155px; height: 6px; background: rgba(255,255,255,0.12);
+    border-radius: 4px; overflow: hidden; margin-top: 4px;
+  }
+  .goal-bar-fill {
+    height: 100%; width: 0%; background: linear-gradient(90deg, #e07b24, #85e868);
+    transition: width 0.25s ease;
+  }
+
+  /* Üst Sağ Araç Çubuğu */
+  #hud-toolbar {
+    display: flex; gap: 7px; align-items: center; pointer-events: auto;
+  }
+  .tool-btn {
+    background: rgba(42, 23, 12, 0.92);
+    border: 2px solid #a06b35; border-radius: 10px;
+    color: #f3d6b1; font-size: 14px; font-weight: 800;
+    padding: 6px 12px; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.48);
+    transition: transform 0.12s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .tool-btn:hover {
+    background: rgba(68, 38, 19, 0.96);
+    border-color: #e6a856;
+    transform: translateY(-1px);
+  }
+  .tool-btn.active-speed, .tool-btn.active-btn {
+    background: linear-gradient(135deg, #d96b1f, #a83c09);
+    border-color: #ffd27d; color: #ffffff;
+    box-shadow: 0 0 14px rgba(255, 165, 50, 0.72);
+  }
+
+  /* Alt Orta Aktif Durum / Akıllı Rehber Çubuğu */
+  #hud-status-bar {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(28, 15, 8, 0.9);
+    border: 1.5px solid rgba(216, 150, 72, 0.65);
+    border-radius: 22px; padding: 7px 18px;
+    font-size: 13px; font-weight: 600; color: #f5dec0;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.55);
+    pointer-events: none; white-space: nowrap; max-width: 92vw;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #hud-status-bar b { color: #ffca7a; }
+  /* Uyarı Kutusu (Alt Orta, durum çubuğunun üstü) */
+  #warning-box {
+    position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+    background: rgba(165, 28, 18, 0.95);
+    border: 2px solid #ff9c85; border-radius: 10px;
+    padding: 9px 22px; font-size: 16px; font-weight: 700; color: #fff;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.7);
+    opacity: 0; transition: opacity 0.18s ease;
+    pointer-events: none; z-index: 30;
+  }
+  #warning-box.visible { opacity: 1; }
+
+  /* Paneller (Gün Başı, Gün Sonu, Usta Çaycı, Duraklat, Kısayollar) */
+  .modal-backdrop {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10, 5, 2, 0.68); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto; z-index: 25; padding: 16px;
+  }
+  .hidden { display: none !important; }
+  .modal-card {
+    background: linear-gradient(160deg, #351d0f 0%, #1d0f06 100%);
+    border: 3px solid #d89648; border-radius: 16px;
+    padding: 24px 30px; min-width: 380px; max-width: 600px; width: 100%;
+    max-height: 92vh; overflow-y: auto;
+    text-align: center; box-shadow: 0 16px 44px rgba(0,0,0,0.88);
+  }
+  .modal-card h2 {
+    font-size: 26px; color: #ffca7a; margin-bottom: 8px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  }
+  .modal-card p.sub {
+    font-size: 15px; color: #ebd0b0; margin-bottom: 16px; line-height: 1.45;
+  }
+  .summary-table {
+    width: 100%; margin: 10px 0 16px 0; border-collapse: collapse;
+    background: rgba(0,0,0,0.28); border-radius: 10px; overflow: hidden;
+  }
+  .summary-table td {
+    padding: 7px 13px; font-size: 14px; border-bottom: 1px solid rgba(200,138,75,0.2);
+  }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table td:first-child { text-align: left; color: #d6b692; }
+  .summary-table td:last-child { text-align: right; font-weight: 700; color: #fff1dc; }
+  .btn-row {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 14px;
+  }
+  .primary-btn {
+    background: linear-gradient(135deg, #e07b24, #b0460f);
+    border: 2px solid #ffd285; border-radius: 10px;
+    color: #fff; font-size: 17px; font-weight: 800;
+    padding: 11px 24px; cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    transition: transform 0.12s, filter 0.15s;
+  }
+  .primary-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  .secondary-btn {
+    background: rgba(65, 36, 18, 0.9);
+    border: 2px solid #c88a4b; border-radius: 10px;
+    color: #f7ead7; font-size: 16px; font-weight: 700;
+    padding: 10px 20px; cursor: pointer;
+    transition: transform 0.12s, background 0.15s;
+  }
+  .secondary-btn:hover { transform: translateY(-1px); background: rgba(92, 52, 26, 0.95); }
+
+  /* Dükkân Yükseltmeleri Izgarası */
+  .shop-section {
+    margin: 12px 0 8px 0; text-align: left;
+    border-top: 1px solid rgba(216, 150, 72, 0.35); padding-top: 12px;
+  }
+  .shop-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px;
+  }
+  .shop-header h3 { font-size: 16px; color: #ffca7a; }
+  .shop-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 8px;
+  }
+  .upgrade-card {
+    background: rgba(0, 0, 0, 0.32); border: 1.5px solid rgba(200, 138, 75, 0.45);
+    border-radius: 10px; padding: 9px 11px;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 6px;
+  }
+  .upgrade-card.owned {
+    border-color: #67d65e; background: rgba(45, 92, 38, 0.25);
+  }
+  .upgrade-top {
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  }
+  .upgrade-name { font-size: 14px; font-weight: 800; color: #fff2de; }
+  .upgrade-desc { font-size: 12px; color: #d6b692; line-height: 1.3; }
+  .upgrade-buy-btn {
+    align-self: flex-end; background: linear-gradient(135deg, #c97c24, #96480d);
+    border: 1.5px solid #ffd285; border-radius: 7px; color: #fff;
+    font-size: 12px; font-weight: 800; padding: 4px 11px; cursor: pointer;
+  }
+  .upgrade-buy-btn:disabled {
+    opacity: 0.45; cursor: not-allowed; filter: grayscale(0.4);
+  }
+  .upgrade-owned-tag {
+    align-self: flex-end; font-size: 12px; font-weight: 800; color: #85e868;
+  }
+
+  /* Kısayollar Listesi */
+  .shortcut-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+    text-align: left; margin: 12px 0 18px 0;
+  }
+  .shortcut-item {
+    background: rgba(0,0,0,0.28); border: 1px solid rgba(200,138,75,0.25);
+    border-radius: 8px; padding: 6px 10px; font-size: 13px; color: #ebd0b0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .kbd {
+    background: #472814; border: 1px solid #d89648; border-radius: 5px;
+    padding: 2px 7px; font-weight: 800; color: #ffca7a; font-size: 12px;
+  }
+
+  /* Sipariş Balonları Katmanı */
+  #bubbles-container, #floating-texts-container {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; overflow: hidden;
+  }
+  .order-bubble {
+    position: absolute; transform: translate(-50%, -100%);
+    background: rgba(252, 245, 232, 0.96);
+    border: 2.5px solid #6b3e19; border-radius: 12px;
+    padding: 7px 11px; min-width: 130px;
+    color: #2b1708; box-shadow: 0 5px 15px rgba(0,0,0,0.55);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    pointer-events: auto; cursor: pointer;
+    transition: transform 0.1s, border-color 0.18s, box-shadow 0.18s;
+  }
+  .order-bubble:hover {
+    transform: translate(-50%, -100%) scale(1.05);
+    border-color: #d97824;
+  }
+  .order-bubble.tray-match {
+    border-color: #2fb838;
+    box-shadow: 0 0 18px rgba(72, 224, 82, 0.85), 0 5px 15px rgba(0,0,0,0.5);
+    background: rgba(244, 255, 240, 0.98);
+  }
+  .order-bubble::after {
+    content: ''; position: absolute; bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px 7px 0; border-style: solid;
+    border-color: #6b3e19 transparent transparent transparent;
+  }
+  .order-bubble.tray-match::after {
+    border-color: #2fb838 transparent transparent transparent;
+  }
+  .guest-tag {
+    font-size: 10px; font-weight: 900; letter-spacing: 0.5px;
+    padding: 1px 7px; border-radius: 8px; text-transform: uppercase;
+  }
+  .guest-tag.vip { background: #7a1426; color: #ffd966; border: 1px solid #f0b429; }
+  .guest-tag.aceleci { background: #14695b; color: #c7fff4; border: 1px solid #3bd4b8; }
+  .bubble-icons {
+    display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap;
+  }
+  .cup-icon-wrap {
+    display: flex; align-items: flex-end; gap: 2px;
+    background: rgba(107,62,25,0.09); padding: 3px 5px; border-radius: 6px;
+  }
+  .cup-svg { width: 16px; height: 22px; display: block; }
+  .sugar-cube-icon {
+    width: 9px; height: 9px; background: #ffffff;
+    border: 1.5px solid #6e6259; border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .lemon-icon {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #fff48f, #f2c318);
+    border: 1.5px solid #b88a00;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .bubble-text {
+    font-size: 11.5px; font-weight: 800; color: #361b07;
+    white-space: nowrap; text-align: center;
+  }
+  .patience-track {
+    width: 100%; height: 6px; background: #d5c4ad;
+    border-radius: 4px; overflow: hidden; margin-top: 2px;
+    border: 1px solid rgba(0,0,0,0.2);
+  }
+  .patience-fill {
+    height: 100%; width: 100%; background: #38b83c;
+    transition: width 0.08s linear;
+  }
+  .reaction-badge {
+    position: absolute; transform: translate(-50%, -100%);
+    font-size: 32px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
+    pointer-events: none;
+  }
+
+  /* Uçan +TL Yazıları */
+  .floating-tl {
+    position: absolute; transform: translate(-50%, -50%);
+    font-size: 21px; font-weight: 900; color: #7aff5c;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 10px rgba(60, 180, 30, 0.8);
+    pointer-events: none; white-space: nowrap;
+  }
+  .floating-tl.negative {
+    color: #ff6252;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 10px rgba(200, 30, 20, 0.8);
+  }
+  .floating-tl.combo {
+    color: #ffd166; font-size: 18px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.95), 0 0 12px rgba(240, 130, 15, 0.9);
+  }
+
+  /* Alt Başparmak Kontrol Paneli (Mobil & Masaüstü Hızlı Erişim) */
+  #bottom-controls-wrap {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    padding: 0 10px calc(10px + env(safe-area-inset-bottom, 0px)) 10px;
+    pointer-events: none; z-index: 18;
+  }
+  #deliver-strip {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    pointer-events: auto; max-width: 100%;
+  }
+  .deliver-btn {
+    background: linear-gradient(135deg, #2fb838, #1c7c24);
+    border: 2px solid #b5ff9e; border-radius: 14px;
+    color: #fff; font-size: 15px; font-weight: 900;
+    padding: 9px 18px; cursor: pointer;
+    box-shadow: 0 4px 18px rgba(47, 184, 56, 0.65);
+    animation: comboPulse 0.75s ease-in-out infinite alternate;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .deliver-btn:active { transform: scale(0.95); }
+
+  #hud-status-bar {
+    position: static; transform: none;
+    background: rgba(28, 15, 8, 0.9);
+    border: 1.5px solid rgba(216, 150, 72, 0.6);
+    border-radius: 18px; padding: 5px 14px;
+    font-size: 12.5px; font-weight: 600; color: #f5dec0;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+    pointer-events: none; white-space: nowrap; max-width: 96vw;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #hud-status-bar b { color: #ffca7a; }
+
+  #mobile-dock {
+    pointer-events: auto;
+    display: grid; grid-template-columns: repeat(8, minmax(72px, 1fr)); gap: 7px;
+    width: 100%; max-width: 780px;
+    background: linear-gradient(180deg, rgba(36, 19, 10, 0.94), rgba(20, 10, 5, 0.97));
+    border: 2px solid #c88a4b; border-radius: 16px;
+    padding: 8px; box-shadow: 0 8px 28px rgba(0,0,0,0.75);
+  }
+  .dock-btn {
+    position: relative;
+    background: linear-gradient(160deg, rgba(72, 40, 20, 0.95), rgba(45, 24, 12, 0.95));
+    border: 1.5px solid #9c6835; border-radius: 12px;
+    color: #fff2de; cursor: pointer;
+    padding: 7px 4px; min-height: 54px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    transition: transform 0.08s, border-color 0.16s, background 0.16s, box-shadow 0.16s;
+  }
+  .dock-btn:active { transform: scale(0.93); }
+  .dock-btn .dock-ico { font-size: 20px; line-height: 1.1; }
+  .dock-btn .dock-lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.2px; color: #f3d6b1; }
+  .dock-btn .dock-badge {
+    position: absolute; top: 3px; right: 4px;
+    background: rgba(18, 9, 4, 0.88); border: 1px solid rgba(255, 202, 122, 0.5);
+    border-radius: 7px; padding: 1px 5px;
+    font-size: 10px; font-weight: 900; color: #ffca7a;
+  }
+  .dock-btn.hint-next {
+    border-color: #ffd166;
+    background: linear-gradient(160deg, rgba(168, 86, 22, 0.95), rgba(110, 48, 12, 0.95));
+    box-shadow: 0 0 14px rgba(255, 190, 66, 0.55);
+  }
+  .dock-btn.hint-ready {
+    border-color: #85e868;
+    background: linear-gradient(160deg, rgba(42, 124, 38, 0.95), rgba(24, 78, 22, 0.95));
+    box-shadow: 0 0 14px rgba(105, 232, 92, 0.55);
+  }
+  .dock-btn.hint-alert {
+    border-color: #ff7a66;
+    background: linear-gradient(160deg, rgba(168, 36, 24, 0.95), rgba(112, 20, 14, 0.95));
+    box-shadow: 0 0 14px rgba(255, 92, 72, 0.65);
+    animation: comboPulse 0.8s ease-in-out infinite alternate;
+  }
+  .dock-btn.dimmed { opacity: 0.52; }
+
+  #warning-box { bottom: 168px; }
+
+  /* Mobil / Dar Ekran Düzeni (<= 768px) */
+  @media (max-width: 768px) {
+    #hud-top-left {
+      top: calc(8px + env(safe-area-inset-top, 0px)); left: 8px;
+      padding: 6px 10px; min-width: 0; border-radius: 10px; border-width: 1.5px;
+    }
+    #hud-top-left h1 { font-size: 15px; gap: 4px; }
+    .left-meta { margin-top: 2px; gap: 6px; }
+    #hud-top-left .day-badge { font-size: 12px; }
+    .wallet-badge { font-size: 11px; padding: 1px 6px; }
+    .combo-badge { font-size: 11px; padding: 2px 6px; margin-top: 3px; }
+    .record-mini { display: none; }
+
+    #hud-top-right-wrap {
+      top: calc(8px + env(safe-area-inset-top, 0px)); right: 8px; gap: 5px;
+    }
+    #hud-top-right {
+      padding: 6px 10px; gap: 10px; border-radius: 10px; border-width: 1.5px;
+    }
+    .hud-stat .label { font-size: 8.5px; letter-spacing: 0.4px; }
+    .hud-stat .val { font-size: 13.5px; margin-top: 1px; }
+    .goal-bar-track { width: 92px; height: 5px; margin-top: 3px; }
+    .hud-stat.hide-mobile { display: none; }
+
+    #hud-toolbar { gap: 4px; }
+    .tool-btn {
+      font-size: 13px; padding: 5px 8px; border-radius: 8px; border-width: 1.5px;
+      min-height: 32px;
+    }
+
+    #mobile-dock {
+      grid-template-columns: repeat(4, 1fr); gap: 6px;
+      padding: 7px; border-radius: 14px;
+    }
+    .dock-btn { min-height: 58px; padding: 6px 3px; border-radius: 11px; }
+    .dock-btn .dock-ico { font-size: 22px; }
+    .dock-btn .dock-lbl { font-size: 11px; }
+    .dock-btn .dock-badge { font-size: 9.5px; padding: 1px 4px; }
+    #hud-status-bar { font-size: 11.5px; padding: 4px 11px; }
+    .deliver-btn { font-size: 14px; padding: 9px 15px; width: 100%; justify-content: center; }
+    #warning-box { bottom: 205px; font-size: 14px; padding: 7px 16px; }
+
+    /* Sipariş balonları mobilde kompakt ve taşmasız */
+    .order-bubble {
+      min-width: 96px; padding: 5px 7px; border-radius: 10px; border-width: 2px; gap: 3px;
+    }
+    .cup-svg { width: 13px; height: 18px; }
+    .bubble-text { font-size: 10px; }
+    .guest-tag { font-size: 9px; padding: 1px 5px; }
+
+    /* Modallar küçük ekrana tam sığsın */
+    .modal-card {
+      min-width: 0; padding: 18px 16px; border-radius: 14px;
+    }
+    .modal-card h2 { font-size: 21px; }
+    .modal-card p.sub { font-size: 13.5px; margin-bottom: 12px; }
+    .summary-table td { padding: 6px 9px; font-size: 13px; }
+    .primary-btn, .secondary-btn { font-size: 15px; padding: 10px 18px; width: 100%; }
+    .shop-grid { grid-template-columns: 1fr; }
+    .shortcut-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Yatay telefon (landscape mobile) düzeni */
+  @media (max-height: 480px) and (orientation: landscape) {
+    #mobile-dock {
+      grid-template-columns: repeat(8, 1fr); padding: 5px; gap: 5px;
+    }
+    .dock-btn { min-height: 44px; padding: 4px 2px; }
+    .dock-btn .dock-ico { font-size: 17px; }
+    .dock-btn .dock-lbl { font-size: 10px; }
+    #hud-status-bar { display: none; }
+    #warning-box { bottom: 72px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="ui-layer">
+  <!-- Sol Üst Başlık, Gün, Kasa ve Seri -->
+  <div id="hud-top-left">
+    <h1>🫖 Çay Ocağı</h1>
+    <div class="left-meta">
+      <span class="day-badge" id="hud-day">Gün 1</span>
+      <span class="wallet-badge" id="hud-wallet">Kasa: 0 TL</span>
+    </div>
+    <div class="combo-badge hidden" id="hud-combo">🔥 2x Seri</div>
+    <div class="record-mini" id="hud-record"></div>
+  </div>
+
+  <!-- Sağ Üst Kazanç, Süre, Temiz Bardak ve Araç Çubuğu -->
+  <div id="hud-top-right-wrap">
+    <div id="hud-top-right">
+      <div class="hud-stat">
+        <span class="label">Kazanç / Hedef</span>
+        <span class="val highlight" id="hud-earnings">0 / 40 TL</span>
+        <div class="goal-bar-track"><div class="goal-bar-fill" id="hud-goal-bar"></div></div>
+      </div>
+      <div class="hud-stat">
+        <span class="label">Süre</span>
+        <span class="val" id="hud-time">90 sn</span>
+      </div>
+      <div class="hud-stat hide-mobile">
+        <span class="label">Bardak</span>
+        <span class="val" id="hud-clean-cups">8 / 8</span>
+      </div>
+    </div>
+    <div id="hud-toolbar">
+      <button id="speed-btn" class="tool-btn" type="button" title="Oyun Hızı (Boşluk)">⏩ ×1</button>
+      <button id="mute-btn" class="tool-btn" type="button" title="Sesi Aç/Kapat (M)">🔊</button>
+      <button id="pause-btn" class="tool-btn" type="button" title="Duraklat (P)">⏸</button>
+      <button id="cam-lock-btn" class="tool-btn" type="button" title="Kamera Kilidi">🔓</button>
+      <button id="cam-btn" class="tool-btn" type="button" title="Kamerayı Sıfırla (C)">🎥</button>
+      <button id="help-btn" class="tool-btn" type="button" title="Rehber ve Kısayollar">❓</button>
+    </div>
+  </div>
+
+  <!-- Müşteri Sipariş Balonları -->
+  <div id="bubbles-container"></div>
+
+  <!-- Uçan +TL Yazıları -->
+  <div id="floating-texts-container"></div>
+
+  <!-- Alt Orta Uyarı Mesajı -->
+  <div id="warning-box"></div>
+
+  <!-- Alt Başparmak Kontrol Paneli & Tek Dokunuş Teslim -->
+  <div id="bottom-controls-wrap">
+    <div id="deliver-strip"></div>
+    <div id="hud-status-bar">
+      <b>Dokun & Hazırla:</b> Bardak → Demlik → Açık/Şeker/Limon → Tepsi → Teslim Et!
+    </div>
+    <div id="mobile-dock" aria-label="Hızlı Çay Ocağı Kontrolleri">
+      <button id="dock-bardak" class="dock-btn" type="button">
+        <span class="dock-badge" id="badge-bardak">8</span>
+        <span class="dock-ico">🥛</span>
+        <span class="dock-lbl">Bardak</span>
+      </button>
+      <button id="dock-demlik" class="dock-btn" type="button">
+        <span class="dock-badge" id="badge-demlik">8</span>
+        <span class="dock-ico">🫖</span>
+        <span class="dock-lbl" id="lbl-demlik">Dem</span>
+      </button>
+      <button id="dock-semaver" class="dock-btn" type="button">
+        <span class="dock-ico">🔥</span>
+        <span class="dock-lbl">Açık</span>
+      </button>
+      <button id="dock-seker" class="dock-btn" type="button">
+        <span class="dock-ico">🧊</span>
+        <span class="dock-lbl">Şeker</span>
+      </button>
+      <button id="dock-limon" class="dock-btn" type="button">
+        <span class="dock-ico">🍋</span>
+        <span class="dock-lbl">Limon</span>
+      </button>
+      <button id="dock-tepsi" class="dock-btn" type="button">
+        <span class="dock-badge" id="badge-tepsi">0/4</span>
+        <span class="dock-ico">🛎️</span>
+        <span class="dock-lbl">Tepsi</span>
+      </button>
+      <button id="dock-yika" class="dock-btn" type="button">
+        <span class="dock-badge" id="badge-kirli">0</span>
+        <span class="dock-ico">🫧</span>
+        <span class="dock-lbl" id="lbl-yika">Yıka</span>
+      </button>
+      <button id="dock-dok" class="dock-btn" type="button">
+        <span class="dock-ico">🗑️</span>
+        <span class="dock-lbl" id="lbl-dok">Dök</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Gün Başı Paneli -->
+  <div id="panel-day-start" class="modal-backdrop">
+    <div class="modal-card">
+      <h2 id="start-panel-title">Gün 1 · Hedef 40 TL</h2>
+      <p class="sub" id="start-panel-desc">
+        Çarşı uyanıyor! İnce belli bardakları hazırla, demini taze tut ve müşterileri bekletmeden askılı tepsiyle servis yap.
+      </p>
+      <div id="start-shop-wrap" class="shop-section hidden">
+        <div class="shop-header">
+          <h3>🏪 Dükkân Yükseltmeleri</h3>
+          <span class="wallet-badge" id="start-shop-wallet">Kasa: 0 TL</span>
+        </div>
+        <div class="shop-grid" id="start-shop-grid"></div>
+      </div>
+      <div class="btn-row">
+        <button id="btn-start-shift" class="primary-btn" type="button">Vardiyayı Başlat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gün Sonu Özet & Dükkân Paneli -->
+  <div id="panel-day-end" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2 id="end-panel-title">Gün 1 Özeti</h2>
+      <table class="summary-table">
+        <tbody>
+          <tr><td>Günlük Kazanç / Hedef</td><td id="sum-earnings">0 / 40 TL</td></tr>
+          <tr><td>Teslim Edilen Sipariş</td><td id="sum-orders">0</td></tr>
+          <tr><td>Teslim Edilen Bardak</td><td id="sum-cups">0</td></tr>
+          <tr><td>En Yüksek Seri</td><td id="sum-streak">0x</td></tr>
+          <tr><td>Kaçan Müşteri</td><td id="sum-escaped">0</td></tr>
+          <tr><td>Bayat Bardak</td><td id="sum-stale">0</td></tr>
+        </tbody>
+      </table>
+      <div id="end-shop-wrap" class="shop-section">
+        <div class="shop-header">
+          <h3>🏪 Dükkân Yükseltmeleri</h3>
+          <span class="wallet-badge" id="end-shop-wallet">Kasa: 0 TL</span>
+        </div>
+        <div class="shop-grid" id="end-shop-grid"></div>
+      </div>
+      <div class="btn-row">
+        <button id="btn-day-end-action" class="primary-btn" type="button">Gün 2'ye geç</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Gün Sonu Usta Çaycı Bitiş Ekranı -->
+  <div id="panel-campaign-win" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>🏆 Usta Çaycı</h2>
+      <p class="sub">Tebrikler! 3 günlük çarşı kampanyasını alnının akıyla tamamladın. İstersen yükseltmelerini alıp Sonsuz Çarşı Modu'nda rekor kırabilirsin!</p>
+      <table class="summary-table">
+        <tbody>
+          <tr><td>3 Günün Toplam Kazancı</td><td id="win-total-earnings">0 TL</td></tr>
+          <tr><td>Son Gün Teslim Edilen Sipariş</td><td id="win-last-orders">0</td></tr>
+          <tr><td>Son Gün Teslim Edilen Bardak</td><td id="win-last-cups">0</td></tr>
+          <tr><td>Son Gün En Yüksek Seri</td><td id="win-last-streak">0x</td></tr>
+        </tbody>
+      </table>
+      <div id="win-shop-wrap" class="shop-section">
+        <div class="shop-header">
+          <h3>🏪 Dükkân Yükseltmeleri</h3>
+          <span class="wallet-badge" id="win-shop-wallet">Kasa: 0 TL</span>
+        </div>
+        <div class="shop-grid" id="win-shop-grid"></div>
+      </div>
+      <div class="btn-row">
+        <button id="btn-endless-mode" class="primary-btn" type="button">Sonsuz Çarşıya Devam Et (Gün 4)</button>
+        <button id="btn-restart-game" class="secondary-btn" type="button">Baştan başla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Duraklat Paneli -->
+  <div id="panel-pause" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 400px;">
+      <h2>⏸ Oyun Duraklatıldı</h2>
+      <p class="sub">Demlik dinleniyor, çarşı bekliyor. Hazır olduğunda devam edebilirsin.</p>
+      <div class="btn-row">
+        <button id="btn-resume-game" class="primary-btn" type="button">Devam Et</button>
+        <button id="btn-pause-restart" class="secondary-btn" type="button">Baştan Başla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Klavye Kısayolları Paneli -->
+  <div id="panel-help" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 500px;">
+      <h2>⌨️ Kısayollar ve Rehber</h2>
+      <div class="shortcut-grid">
+        <div class="shortcut-item"><span>Raftan bardak al</span><span class="kbd">Q</span></div>
+        <div class="shortcut-item"><span>Demlik (Doldur / Demle)</span><span class="kbd">D</span></div>
+        <div class="shortcut-item"><span>Semaver (Açık yap)</span><span class="kbd">S</span></div>
+        <div class="shortcut-item"><span>Şekerlik (+Şeker)</span><span class="kbd">K</span></div>
+        <div class="shortcut-item"><span>Limonluk (+Limon)</span><span class="kbd">L</span></div>
+        <div class="shortcut-item"><span>Tepsiye koy</span><span class="kbd">T</span></div>
+        <div class="shortcut-item"><span>Legen (Yıka / Dök)</span><span class="kbd">Y</span></div>
+        <div class="shortcut-item"><span>Müşteriye teslim</span><span class="kbd">1 · 2 · 3</span></div>
+        <div class="shortcut-item"><span>Seçimi bırak</span><span class="kbd">Esc</span></div>
+        <div class="shortcut-item"><span>Hız (×1/×2/×4)</span><span class="kbd">Boşluk</span></div>
+        <div class="shortcut-item"><span>Duraklat / Ses</span><span class="kbd">P / M</span></div>
+        <div class="shortcut-item"><span>Kamerayı sıfırla</span><span class="kbd">C</span></div>
+      </div>
+      <div class="btn-row">
+        <button id="btn-close-help" class="primary-btn" type="button">Kapat</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================================
+ * 1. AYARLAR (DENGE TABLOSU)
+ * Bütün sayılar, süreler, kapasiteler, fiyatlar ve renkler yalnızca burada.
+ * ============================================================================ */
+const AYARLAR = Object.freeze({
+  VARDIYA_SURESI: 90,
+  ILK_MUSTERI_GECIKMESI: 2.0, // En geç 3 sn içinde ilk müşteri gelir
+  MAX_MUSTERI_SLOTU: 3,
+  TOPLAM_BARDAK: 8,
+  MAX_BARDAK_KAPASITESI: 10,
+  HAZIRLIK_KAPASITESI: 4,
+  TEPSI_KAPASITESI: 4,
+  DEM_KAPASITESI: 8,
+  DEMLEME_SURESI: 10,
+  BAYATLAMA_SURESI: 60,
+  DOLUM_SURESI: 1.5,
+  ACMA_SURESI: 1.5,
+  DOLUM_ORANI: 0.85,
+  KIRLI_DONUS_SURESI: 6,
+  YIKAMA_SURESI: 3,
+  YANLIS_TESLIM_SABIR_CEZASI: 5,
+  BARDAK_FIYATI: 10,
+  BAYAT_BARDAK_FIYATI: 5,
+  LIMON_EK_FIYATI: 3,
+  BAHSIS_MIKTARI: 5,
+  BAHSIS_SABIR_ORANI: 0.5,
+  SERI_BONUS_ADIMI: 3,
+  SERI_BONUS_UST_SINIR: 15,
+  VIP_IKRAM_PRIMI: 8,
+  ACELECI_HIZ_PRIMI: 10,
+  ACELECI_HIZ_ORANI: 0.4,
+  KACAN_MUSTERI_CEZASI: 10,
+  MUSTERI_CIKIS_SURESI: 1.4,
+  UYARI_SURESI: 2.2,
+  DT_UST_SINIR: 0.1,
+  SURUKLEME_ESIGI_PX: 5,
+  HIZ_CARPANLARI: Object.freeze([1, 2, 4]),
+  VARSAYILAN_TOHUM: 145301,
+  RENKLER: Object.freeze({
+    KOYU_CAY: '#4a1206',
+    ACIK_CAY: '#b5401f',
+    BAYAT_CAY: '#3b2414',
+    KIRLI_IZ: '#3d190b',
+    AMBER_ISIK: '#ff9d47',
+    GOKYUZU_UST: '#211428',
+    GOKYUZU_ALT: '#d97638'
+  }),
+  YUKSELTMELER: Object.freeze([
+    Object.freeze({
+      id: 'hizli_demlik',
+      ad: 'Bakır Turbo Demlik',
+      aciklama: 'Demleme 10 sn → 5 sn, kapasite 8 → 12 bardak',
+      fiyat: 35,
+      simge: '🫖'
+    }),
+    Object.freeze({
+      id: 'taze_termos',
+      ad: 'Yalıtımlı Semaver',
+      aciklama: 'Bayatlama 60 sn → 110 sn, dolum/açma %40 hızlı',
+      fiyat: 45,
+      simge: '🔥'
+    }),
+    Object.freeze({
+      id: 'hizli_yikama',
+      ad: 'Sıcak Su Tesisatı',
+      aciklama: 'Yıkama 3 sn → 1.2 sn, kirli dönüş 6 sn → 4 sn',
+      fiyat: 40,
+      simge: '🫧'
+    }),
+    Object.freeze({
+      id: 'buyuk_tepsi',
+      ad: 'Usta Askılı Tepsi',
+      aciklama: 'Tepsi 4 → 6 bardak, rafa +2 ekstra bardak (10)',
+      fiyat: 50,
+      simge: '🛎️'
+    }),
+    Object.freeze({
+      id: 'altin_bardak',
+      ad: 'Altın Yaldızlı Set',
+      aciklama: 'Taze bardak +3 TL, bahşiş +3 TL artar',
+      fiyat: 60,
+      simge: '✨'
+    })
+  ]),
+  GUNLER: Object.freeze([
+    Object.freeze({ gun: 1, gelmeAraligi: 12, sabir: 60, minBardak: 1, maxBardak: 2, sekerOlasiligi: 0.0,  limonOlasiligi: 0.0,  ozelMusteriOlasiligi: 0.0,  hedef: 40 }),
+    Object.freeze({ gun: 2, gelmeAraligi: 10, sabir: 55, minBardak: 1, maxBardak: 3, sekerOlasiligi: 0.30, limonOlasiligi: 0.25, ozelMusteriOlasiligi: 0.25, hedef: 70 }),
+    Object.freeze({ gun: 3, gelmeAraligi: 8,  sabir: 50, minBardak: 1, maxBardak: 3, sekerOlasiligi: 0.45, limonOlasiligi: 0.38, ozelMusteriOlasiligi: 0.40, hedef: 100 })
+  ])
+});
+
+/* ============================================================================
+ * 2. OYUN ÇEKİRDEĞİ (DERİN MODÜL)
+ * Saf JavaScript. Three.js ve DOM'a dokunmaz.
+ * Dışa açık arayüz: başlat(ayarlar, tohum), komut(tür, hedef), ilerle(dt), durum(), olaylar()
+ * ============================================================================ */
+function oyunCekirdegiOlustur() {
+  let cfg = AYARLAR;
+  let rngState = 1;
+  let aktifTohum = 1;
+
+  // Tohumlanabilir deterministik PRNG (Mulberry32)
+  function tohumAyarla(tohum) {
+    aktifTohum = (Number(tohum) || cfg.VARSAYILAN_TOHUM) >>> 0;
+    if (aktifTohum === 0) aktifTohum = 1;
+    rngState = aktifTohum;
+  }
+
+  function rastgele() {
+    let t = (rngState += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  function rastgeleTamSayi(min, max) {
+    return Math.floor(rastgele() * (max - min + 1)) + min;
+  }
+
+  // Oyun içi durum değişkenleri
+  let gunIndex = 0; // 0 -> Gün 1, 1 -> Gün 2, 2 -> Gün 3, 3+ -> Sonsuz Mod
+  let evre = 'GUN_BASI'; // 'GUN_BASI' | 'AKTIF' | 'GUN_SONU' | 'BITIS'
+  let sonsuzMod = false;
+  let kalanSure = 0;
+  let gunlukKazanc = 0;
+  let oncekiGunlerinKazanci = 0;
+  let kasa = 0;
+  let gunKasayaIslendi = false;
+  let seciliBardakId = null;
+
+  // Kombo / Seri ve Yükseltmeler
+  let seri = 0;
+  let enYuksekSeri = 0;
+  let yukseltmeler = new Set();
+
+  // İstatistikler
+  let teslimEdilenSiparisSayisi = 0;
+  let teslimEdilenBardakSayisi = 0;
+  let kacanMusteriSayisi = 0;
+  let bayatBardakSayisi = 0;
+
+  // Demlik durumu
+  let demlik = {
+    kalan: 8,
+    durum: 'TAZE', // 'TAZE' | 'DEMLENIYOR' | 'BAYAT' | 'BITTI'
+    demlemeSayaci: 0,
+    bayatlamaSayaci: 0
+  };
+
+  // Legen yıkama durumu
+  let yikama = {
+    aktif: false,
+    kalanSure: 0
+  };
+
+  // Bardaklar (0..7 veya yükseltme ile 0..9)
+  let bardaklar = [];
+
+  // Müşteriler ve gelme zamanlayıcısı
+  let musteriler = [];
+  let sonrakiMusteriSayaci = 0;
+  let musteriSayacId = 1;
+
+  // Olay kuyruğu
+  let bekleyenOlaylar = [];
+
+  function olayEkle(tur, veri = {}) {
+    bekleyenOlaylar.push({ tur, ...veri });
+  }
+
+  function uyariVer(mesaj, kod) {
+    olayEkle('uyari', { mesaj, kod });
+    return kod || mesaj;
+  }
+
+  // Yükseltme yardımcı hesaplayıcıları
+  function yVar(id) { return yukseltmeler.has(id); }
+  function aktifToplamBardak() { return yVar('buyuk_tepsi') ? (cfg.MAX_BARDAK_KAPASITESI || 10) : cfg.TOPLAM_BARDAK; }
+  function aktifTepsiKapasitesi() { return yVar('buyuk_tepsi') ? 6 : cfg.TEPSI_KAPASITESI; }
+  function aktifDemKapasitesi() { return yVar('hizli_demlik') ? 12 : cfg.DEM_KAPASITESI; }
+  function aktifDemlemeSuresi() { return yVar('hizli_demlik') ? 5 : cfg.DEMLEME_SURESI; }
+  function aktifBayatlamaSuresi() { return yVar('taze_termos') ? 110 : cfg.BAYATLAMA_SURESI; }
+  function aktifDolumSuresi() { return yVar('taze_termos') ? cfg.DOLUM_SURESI * 0.6 : cfg.DOLUM_SURESI; }
+  function aktifAcmaSuresi() { return yVar('taze_termos') ? cfg.ACMA_SURESI * 0.6 : cfg.ACMA_SURESI; }
+  function aktifYikamaSuresi() { return yVar('hizli_yikama') ? 1.2 : cfg.YIKAMA_SURESI; }
+  function aktifKirliDonusSuresi() { return yVar('hizli_yikama') ? 4 : cfg.KIRLI_DONUS_SURESI; }
+  function aktifBardakFiyati() { return cfg.BARDAK_FIYATI + (yVar('altin_bardak') ? 3 : 0); }
+  function aktifBahsisMiktari() { return cfg.BAHSIS_MIKTARI + (yVar('altin_bardak') ? 3 : 0); }
+
+  function gunAyariniAl() {
+    if (gunIndex < cfg.GUNLER.length) {
+      return cfg.GUNLER[gunIndex];
+    }
+    // Sonsuz Çarşı Modu (Gün 4+)
+    const ekGun = gunIndex - cfg.GUNLER.length + 1;
+    return {
+      gun: gunIndex + 1,
+      gelmeAraligi: Math.max(4.5, Number((8 - ekGun * 0.55).toFixed(2))),
+      sabir: Math.max(34, 50 - ekGun * 2.5),
+      minBardak: ekGun >= 3 ? 2 : 1,
+      maxBardak: Math.min(4, 3 + (ekGun >= 2 ? 1 : 0)),
+      sekerOlasiligi: Math.min(0.60, 0.45 + ekGun * 0.04),
+      limonOlasiligi: Math.min(0.55, 0.38 + ekGun * 0.04),
+      ozelMusteriOlasiligi: Math.min(0.65, 0.40 + ekGun * 0.05),
+      hedef: 100 + ekGun * 35
+    };
+  }
+
+  function bardaklariSifirla() {
+    bardaklar = [];
+    const toplam = aktifToplamBardak();
+    for (let i = 0; i < toplam; i++) {
+      bardaklar.push({
+        id: i,
+        asama: 'temiz', // 'temiz' | 'hazirlikta-bos' | 'koyu' | 'acik' | 'tepside' | 'teslim-edildi' | 'kirli' | 'yikaniyor'
+        rafSlid: i,
+        hazirlikSlid: -1,
+        tepsiSlid: -1,
+        ton: null, // null | 'koyu' | 'acik'
+        seker: false,
+        limon: false,
+        bayat: false,
+        gecisTuru: null, // null | 'dolduruluyor' | 'aciliyor'
+        gecisIlerleme: 1,
+        kirliDonusKalan: 0
+      });
+    }
+    seciliBardakId = null;
+  }
+
+  function demligiSifirla() {
+    demlik = {
+      kalan: aktifDemKapasitesi(),
+      durum: 'TAZE',
+      demlemeSayaci: 0,
+      bayatlamaSayaci: 0
+    };
+  }
+
+  function gunuHazirla(yeniGunIndex) {
+    gunIndex = yeniGunIndex;
+    evre = 'GUN_BASI';
+    kalanSure = cfg.VARDIYA_SURESI;
+    gunlukKazanc = 0;
+    gunKasayaIslendi = false;
+    seri = 0;
+    enYuksekSeri = 0;
+    teslimEdilenSiparisSayisi = 0;
+    teslimEdilenBardakSayisi = 0;
+    kacanMusteriSayisi = 0;
+    bayatBardakSayisi = 0;
+    yikama = { aktif: false, kalanSure: 0 };
+    musteriler = [];
+    sonrakiMusteriSayaci = cfg.ILK_MUSTERI_GECIKMESI;
+    bardaklariSifirla();
+    demligiSifirla();
+  }
+
+  function bosHazirlikYeriBul() {
+    const doluYerler = new Set();
+    for (const b of bardaklar) {
+      if ((b.asama === 'hazirlikta-bos' || b.asama === 'koyu' || b.asama === 'acik') && b.hazirlikSlid >= 0) {
+        doluYerler.add(b.hazirlikSlid);
+      }
+    }
+    for (let s = 0; s < cfg.HAZIRLIK_KAPASITESI; s++) {
+      if (!doluYerler.has(s)) return s;
+    }
+    return -1;
+  }
+
+  function bosTepsiYeriBul() {
+    const doluYerler = new Set();
+    for (const b of bardaklar) {
+      if (b.asama === 'tepside' && b.tepsiSlid >= 0) {
+        doluYerler.add(b.tepsiSlid);
+      }
+    }
+    const kap = aktifTepsiKapasitesi();
+    for (let s = 0; s < kap; s++) {
+      if (!doluYerler.has(s)) return s;
+    }
+    return -1;
+  }
+
+  function bosRafYeriBul() {
+    const doluYerler = new Set();
+    for (const b of bardaklar) {
+      if (b.asama === 'temiz' && b.rafSlid >= 0) {
+        doluYerler.add(b.rafSlid);
+      }
+    }
+    const toplam = aktifToplamBardak();
+    for (let s = 0; s < toplam; s++) {
+      if (!doluYerler.has(s)) return s;
+    }
+    return 0;
+  }
+
+  function siparisMetniOlustur(istekler) {
+    const harita = new Map();
+    const sira = [];
+    for (const k of istekler) {
+      const anahtar = `${k.ton}:${k.seker ? 1 : 0}:${k.limon ? 1 : 0}`;
+      if (!harita.has(anahtar)) {
+        const parcalar = [k.ton === 'koyu' ? 'koyu' : 'açık'];
+        if (k.seker) parcalar.push('şekerli');
+        if (k.limon) parcalar.push('limonlu');
+        const oge = { ad: parcalar.join(' '), adet: 0 };
+        harita.set(anahtar, oge);
+        sira.push(oge);
+      }
+      harita.get(anahtar).adet++;
+    }
+    return sira.map(g => `${g.adet} ${g.ad}`).join(' · ');
+  }
+
+  function yeniMusteriOlustur(slotIndex) {
+    const gAyar = gunAyariniAl();
+    let tip = 'NORMAL';
+    const ozelOlasilik = gAyar.ozelMusteriOlasiligi || 0;
+    if (ozelOlasilik > 0 && rastgele() < ozelOlasilik) {
+      tip = rastgele() < 0.5 ? 'VIP' : 'ACELECI';
+    }
+
+    let minB = gAyar.minBardak;
+    let maxB = gAyar.maxBardak;
+    if (tip === 'VIP') minB = Math.min(maxB, Math.max(2, minB));
+
+    const bardakSayisi = rastgeleTamSayi(minB, maxB);
+    const istekler = [];
+    const limonOlasilik = gAyar.limonOlasiligi || 0;
+    for (let i = 0; i < bardakSayisi; i++) {
+      const ton = rastgele() < 0.5 ? 'koyu' : 'acik';
+      const seker = rastgele() < (gAyar.sekerOlasiligi || 0);
+      const limon = limonOlasilik > 0 && rastgele() < limonOlasilik;
+      istekler.push({ ton, seker, limon });
+    }
+    const id = musteriSayacId++;
+    const sapkaTipi = tip === 'VIP' ? 'vip_fes' : (tip === 'ACELECI' ? 'kasket' : (rastgele() < 0.5 ? 'fes' : 'kasket'));
+    const ceketPaleti = ['#3b5978', '#5e422f', '#3d5c45', '#6e352c', '#4f4363'];
+    const ceketRengi = tip === 'VIP'
+      ? '#6b1826'
+      : (tip === 'ACELECI' ? '#1f6e62' : ceketPaleti[Math.floor(rastgele() * ceketPaleti.length)]);
+
+    const toplamSabir = tip === 'ACELECI' ? Math.round(gAyar.sabir * 0.78) : gAyar.sabir;
+
+    const musteri = {
+      id,
+      slot: slotIndex,
+      tip,
+      istekler,
+      siparisMetni: siparisMetniOlustur(istekler),
+      kalanSabir: toplamSabir,
+      toplamSabir,
+      durum: 'BEKLIYOR',
+      sapkaTipi,
+      ceketRengi
+    };
+    musteriler.push(musteri);
+    olayEkle('musteri_geldi', { musteriId: id, slot: slotIndex, tip, siparisMetni: musteri.siparisMetni });
+  }
+
+  function siparisEslesiyorMu(tepsiBardaklari, istekler) {
+    if (tepsiBardaklari.length !== istekler.length) return false;
+    const imza = (ton, seker, limon) => `${ton}:${seker ? 1 : 0}:${limon ? 1 : 0}`;
+    const sayac = new Map();
+    for (const k of istekler) {
+      const anahtar = imza(k.ton, k.seker, k.limon);
+      sayac.set(anahtar, (sayac.get(anahtar) || 0) + 1);
+    }
+    for (const b of tepsiBardaklari) {
+      const anahtar = imza(b.ton, b.seker, b.limon);
+      const mevcut = sayac.get(anahtar) || 0;
+      if (mevcut <= 0) return false;
+      sayac.set(anahtar, mevcut - 1);
+    }
+    return true;
+  }
+
+  function baslat(ozelAyarlar, tohum) {
+    cfg = ozelAyarlar || AYARLAR;
+    tohumAyarla(tohum !== undefined ? tohum : cfg.VARSAYILAN_TOHUM);
+    oncekiGunlerinKazanci = 0;
+    kasa = 0;
+    sonsuzMod = false;
+    yukseltmeler = new Set();
+    musteriSayacId = 1;
+    bekleyenOlaylar = [];
+    gunuHazirla(0);
+    return 'tamam';
+  }
+
+  function komut(tur, hedef) {
+    // Gün başı, gün sonu, yükseltme, sonsuz mod ve baştan başla komutları
+    if (tur === 'vardiya_baslat') {
+      if (evre !== 'GUN_BASI') return uyariVer('Vardiya zaten başladı', 'gecersiz_evre');
+      evre = 'AKTIF';
+      olayEkle('vardiya_basladi', { gun: gunAyariniAl().gun });
+      return 'tamam';
+    }
+
+    if (tur === 'yukseltme_al') {
+      if (evre !== 'GUN_SONU' && evre !== 'BITIS' && evre !== 'GUN_BASI') {
+        return uyariVer('Yükseltme sadece vardiya dışında alınabilir', 'gecersiz_evre');
+      }
+      const liste = cfg.YUKSELTMELER || [];
+      const y = liste.find(item => item.id === hedef);
+      if (!y) return uyariVer('Yükseltme bulunamadı', 'yukseltme_yok');
+      if (yukseltmeler.has(y.id)) return uyariVer('Bu yükseltme zaten alındı', 'zaten_alindi');
+      if (kasa < y.fiyat) return uyariVer('Kasa yetersiz', 'kasa_yetersiz');
+
+      kasa -= y.fiyat;
+      yukseltmeler.add(y.id);
+      if (evre === 'GUN_BASI') {
+        bardaklariSifirla();
+        demligiSifirla();
+      }
+      olayEkle('yukseltme_alindi', { id: y.id, ad: y.ad, fiyat: y.fiyat });
+      return 'tamam';
+    }
+
+    if (tur === 'sonraki_gun') {
+      const gAyar = gunAyariniAl();
+      if (evre !== 'GUN_SONU' || gunlukKazanc < gAyar.hedef) {
+        return uyariVer('Hedef henüz tutturulmadı', 'hedef_tutmadi');
+      }
+      oncekiGunlerinKazanci += gunlukKazanc;
+      if (sonsuzMod || gunIndex + 1 < cfg.GUNLER.length) {
+        gunuHazirla(gunIndex + 1);
+      } else {
+        evre = 'BITIS';
+      }
+      return 'tamam';
+    }
+
+    if (tur === 'sonsuz_baslat') {
+      if (evre !== 'BITIS') return uyariVer('Önce 3 günlük kampanyayı tamamlayın', 'gecersiz_evre');
+      sonsuzMod = true;
+      oncekiGunlerinKazanci += gunlukKazanc;
+      gunuHazirla(cfg.GUNLER.length);
+      return 'tamam';
+    }
+
+    if (tur === 'gunu_tekrarla') {
+      if (evre !== 'GUN_SONU') return uyariVer('Gün henüz bitmedi', 'gecersiz_evre');
+      gunuHazirla(gunIndex);
+      return 'tamam';
+    }
+
+    if (tur === 'bastan_basla') {
+      oncekiGunlerinKazanci = 0;
+      kasa = 0;
+      sonsuzMod = false;
+      yukseltmeler = new Set();
+      gunuHazirla(0);
+      return 'tamam';
+    }
+
+    if (evre !== 'AKTIF') {
+      return uyariVer('Önce vardiyayı başlatın', 'vardiya_aktif_degil');
+    }
+
+    // Boş alana tıklama -> seçim kalkar
+    if (tur === 'bosa_tikla') {
+      seciliBardakId = null;
+      return 'tamam';
+    }
+
+    // Bardak seçimi (raftan, hazırlık sırasından veya tepsiden)
+    if (tur === 'bardak_sec') {
+      let b = null;
+      if (hedef !== undefined && hedef !== null) {
+        b = bardaklar.find(x => x.id === Number(hedef));
+      } else {
+        b = bardaklar.find(x => x.asama === 'temiz');
+      }
+
+      if (!b) {
+        const temizSayisi = bardaklar.filter(x => x.asama === 'temiz').length;
+        if (temizSayisi === 0) return uyariVer('Temiz bardak yok', 'temiz_bardak_yok');
+        return uyariVer('Bardak bulunamadı', 'bardak_yok');
+      }
+
+      if (b.asama === 'temiz') {
+        const bosYer = bosHazirlikYeriBul();
+        if (bosYer === -1) {
+          return uyariVer('Hazırlık yeri dolu', 'hazirlik_dolu');
+        }
+        b.asama = 'hazirlikta-bos';
+        b.rafSlid = -1;
+        b.hazirlikSlid = bosYer;
+        b.tepsiSlid = -1;
+        b.ton = null;
+        b.seker = false;
+        b.limon = false;
+        b.bayat = false;
+        b.gecisTuru = null;
+        b.gecisIlerleme = 1;
+        seciliBardakId = b.id;
+        olayEkle('bardak_secildi', { bardakId: b.id, raftan: true });
+        return 'tamam';
+      }
+
+      if (b.asama === 'hazirlikta-bos' || b.asama === 'koyu' || b.asama === 'acik' || b.asama === 'tepside') {
+        seciliBardakId = b.id;
+        olayEkle('bardak_secildi', { bardakId: b.id, raftan: false });
+        return 'tamam';
+      }
+
+      const temizSayisi = bardaklar.filter(x => x.asama === 'temiz').length;
+      if (temizSayisi === 0) {
+        return uyariVer('Temiz bardak yok', 'temiz_bardak_yok');
+      }
+      return uyariVer('Bu bardak şu an seçilemez', 'bardak_secilemez');
+    }
+
+    // Raftan herhangi bir temiz bardak alma kısayolu
+    if (tur === 'raf') {
+      const temizBardak = bardaklar.find(x => x.asama === 'temiz');
+      if (!temizBardak) {
+        return uyariVer('Temiz bardak yok', 'temiz_bardak_yok');
+      }
+      return komut('bardak_sec', temizBardak.id);
+    }
+
+    const seciliBardak = seciliBardakId !== null ? bardaklar.find(x => x.id === seciliBardakId) : null;
+
+    // Demliğe tıklama
+    if (tur === 'demlik') {
+      if (!seciliBardak) {
+        if (demlik.durum === 'DEMLENIYOR') {
+          return uyariVer('Dem zaten demleniyor', 'demleniyor');
+        }
+        demlik.kalan = 0;
+        demlik.durum = 'DEMLENIYOR';
+        demlik.demlemeSayaci = aktifDemlemeSuresi();
+        demlik.bayatlamaSayaci = 0;
+        olayEkle('demleme_basladi', { sure: aktifDemlemeSuresi() });
+        return 'tamam';
+      }
+
+      if (demlik.durum === 'DEMLENIYOR') {
+        return uyariVer('Çay demleniyor, bekleyin', 'demleniyor');
+      }
+      if (demlik.kalan <= 0 || demlik.durum === 'BITTI') {
+        return uyariVer('Dem bitti, yeniden demleyin', 'dem_yok');
+      }
+      if (seciliBardak.asama !== 'hazirlikta-bos') {
+        return uyariVer('Bardak zaten dolu', 'bardak_dolu');
+      }
+
+      demlik.kalan -= 1;
+      const demBayatMi = (demlik.durum === 'BAYAT');
+      if (demlik.kalan === 0 && demlik.durum !== 'BAYAT') {
+        demlik.durum = 'BITTI';
+      }
+
+      seciliBardak.asama = 'koyu';
+      seciliBardak.ton = 'koyu';
+      seciliBardak.bayat = demBayatMi;
+      seciliBardak.gecisTuru = 'dolduruluyor';
+      seciliBardak.gecisIlerleme = 0;
+      olayEkle('dem_dokuldu', { bardakId: seciliBardak.id, bayat: demBayatMi });
+      return 'tamam';
+    }
+
+    // Semavere tıklama
+    if (tur === 'semaver') {
+      if (!seciliBardak) {
+        return uyariVer('Önce bir bardak seçin', 'bardak_secili_degil');
+      }
+      if (seciliBardak.asama === 'hazirlikta-bos' || seciliBardak.ton === null) {
+        return uyariVer('Önce dem koy', 'once_dem_koy');
+      }
+      if (seciliBardak.ton === 'acik') {
+        return uyariVer('Çay zaten açık', 'zaten_acik');
+      }
+      if (seciliBardak.asama === 'tepside') {
+        return uyariVer('Tepsideki bardağa su eklenemez', 'tepside_islem_yapilamaz');
+      }
+
+      seciliBardak.asama = 'acik';
+      seciliBardak.ton = 'acik';
+      seciliBardak.gecisTuru = 'aciliyor';
+      seciliBardak.gecisIlerleme = 0;
+      olayEkle('su_acildi', { bardakId: seciliBardak.id });
+      return 'tamam';
+    }
+
+    // Şekerliğe tıklama
+    if (tur === 'sekerlik') {
+      if (!seciliBardak) {
+        return uyariVer('Önce dolu bir bardak seçin', 'bardak_secili_degil');
+      }
+      if (seciliBardak.ton !== 'koyu' && seciliBardak.ton !== 'acik') {
+        return uyariVer('Önce dem koy', 'once_dem_koy');
+      }
+      if (seciliBardak.seker) {
+        return uyariVer('Bardakta zaten şeker var', 'zaten_sekerli');
+      }
+      seciliBardak.seker = true;
+      olayEkle('seker_eklendi', { bardakId: seciliBardak.id });
+      return 'tamam';
+    }
+
+    // Limonluğa tıklama
+    if (tur === 'limonluk') {
+      if (!seciliBardak) {
+        return uyariVer('Önce dolu bir bardak seçin', 'bardak_secili_degil');
+      }
+      if (seciliBardak.ton !== 'koyu' && seciliBardak.ton !== 'acik') {
+        return uyariVer('Önce dem koy', 'once_dem_koy');
+      }
+      if (seciliBardak.limon) {
+        return uyariVer('Bardakta zaten limon var', 'zaten_limonlu');
+      }
+      seciliBardak.limon = true;
+      olayEkle('limon_eklendi', { bardakId: seciliBardak.id });
+      return 'tamam';
+    }
+
+    // Tepsiye tıklama
+    if (tur === 'tepsi') {
+      if (!seciliBardak) {
+        return uyariVer('Tepsiye koymak için dolu bardak seçin', 'bardak_secili_degil');
+      }
+      if (seciliBardak.asama === 'tepside') {
+        seciliBardakId = null;
+        return 'tamam';
+      }
+      if (seciliBardak.ton !== 'koyu' && seciliBardak.ton !== 'acik') {
+        return uyariVer('Boş bardak tepsiye konmaz', 'bos_bardak_tepsiye_konmaz');
+      }
+      const bosTepsiSlid = bosTepsiYeriBul();
+      if (bosTepsiSlid === -1) {
+        return uyariVer('Tepsi dolu', 'tepsi_dolu');
+      }
+      seciliBardak.asama = 'tepside';
+      seciliBardak.hazirlikSlid = -1;
+      seciliBardak.tepsiSlid = bosTepsiSlid;
+      seciliBardakId = null;
+      olayEkle('tepsiye_kondu', { bardakId: seciliBardak.id, tepsiSlid: bosTepsiSlid });
+      return 'tamam';
+    }
+
+    // Legene tıklama
+    if (tur === 'legen') {
+      if (seciliBardak) {
+        seciliBardak.asama = 'kirli';
+        seciliBardak.rafSlid = -1;
+        seciliBardak.hazirlikSlid = -1;
+        seciliBardak.tepsiSlid = -1;
+        seciliBardak.ton = null;
+        seciliBardak.seker = false;
+        seciliBardak.limon = false;
+        seciliBardak.bayat = false;
+        seciliBardak.gecisTuru = null;
+        seciliBardak.gecisIlerleme = 1;
+        seciliBardakId = null;
+        olayEkle('bardak_dokuldu', { bardakId: seciliBardak.id });
+        return 'tamam';
+      }
+
+      if (yikama.aktif) {
+        return uyariVer('Bardaklar yıkanıyor', 'zaten_yikaniyor');
+      }
+      const kirliler = bardaklar.filter(x => x.asama === 'kirli');
+      if (kirliler.length === 0) {
+        return uyariVer('Yıkanacak kirli bardak yok', 'kirli_bardak_yok');
+      }
+      for (const k of kirliler) {
+        k.asama = 'yikaniyor';
+      }
+      yikama.aktif = true;
+      yikama.kalanSure = aktifYikamaSuresi();
+      olayEkle('yikama_basladi', { adet: kirliler.length });
+      return 'tamam';
+    }
+
+    // Müşteriye tıklama (Tepsiyle teslim)
+    if (tur === 'musteri') {
+      if (seciliBardakId !== null) {
+        return uyariVer('Teslim için önce bardağı tepsiye koyun veya seçimi kaldırın', 'bardak_secili');
+      }
+      const tepsiBardaklari = bardaklar.filter(x => x.asama === 'tepside');
+      if (tepsiBardaklari.length === 0) {
+        return uyariVer('Tepsi boş', 'tepsi_bos');
+      }
+
+      let m = musteriler.find(x => x.id === Number(hedef) && x.durum === 'BEKLIYOR');
+      if (!m) {
+        m = musteriler.find(x => x.slot === Number(hedef) && x.durum === 'BEKLIYOR');
+      }
+      if (!m && hedef === undefined && musteriler.length > 0) {
+        m = musteriler.find(x => x.durum === 'BEKLIYOR');
+      }
+      if (!m) {
+        return uyariVer('Müşteri bulunamadı', 'musteri_yok');
+      }
+
+      if (!siparisEslesiyorMu(tepsiBardaklari, m.istekler)) {
+        seri = 0;
+        m.kalanSabir = Math.max(0, m.kalanSabir - cfg.YANLIS_TESLIM_SABIR_CEZASI);
+        olayEkle('yanlis_teslim', { musteriId: m.id, slot: m.slot });
+        if (m.kalanSabir <= 0) {
+          musteriSabriBitti(m);
+        }
+        return uyariVer('Yanlış sipariş', 'yanlis_siparis');
+      }
+
+      // Başarılı teslim!
+      const birimFiyat = aktifBardakFiyati();
+      const limonEk = cfg.LIMON_EK_FIYATI || 0;
+      const kirliSure = aktifKirliDonusSuresi();
+      let siparisOdeme = 0;
+      let buSiparisteBayat = 0;
+
+      for (const b of tepsiBardaklari) {
+        if (b.bayat) {
+          siparisOdeme += cfg.BAYAT_BARDAK_FIYATI;
+          buSiparisteBayat += 1;
+        } else {
+          siparisOdeme += birimFiyat + (b.limon ? limonEk : 0);
+        }
+        b.asama = 'teslim-edildi';
+        b.tepsiSlid = -1;
+        b.ton = null;
+        b.seker = false;
+        b.limon = false;
+        b.bayat = false;
+        b.gecisTuru = null;
+        b.gecisIlerleme = 1;
+        b.kirliDonusKalan = kirliSure;
+      }
+
+      // Bahşiş, seri bonusu ve özel müşteri primi
+      const bahsisAlindi = (m.kalanSabir > m.toplamSabir * cfg.BAHSIS_SABIR_ORANI);
+      let bahsisTutar = 0;
+      if (bahsisAlindi) {
+        bahsisTutar = aktifBahsisMiktari() * (m.tip === 'VIP' ? 2 : 1);
+        siparisOdeme += bahsisTutar;
+      }
+
+      let ozelPrim = 0;
+      if (m.tip === 'VIP' && buSiparisteBayat === 0) {
+        ozelPrim = cfg.VIP_IKRAM_PRIMI || 8;
+        siparisOdeme += ozelPrim;
+      } else if (m.tip === 'ACELECI' && m.kalanSabir > m.toplamSabir * (cfg.ACELECI_HIZ_ORANI || 0.4)) {
+        ozelPrim = cfg.ACELECI_HIZ_PRIMI || 10;
+        siparisOdeme += ozelPrim;
+      }
+
+      seri += 1;
+      if (seri > enYuksekSeri) enYuksekSeri = seri;
+      const seriBonusu = seri >= 2
+        ? Math.min((seri - 1) * (cfg.SERI_BONUS_ADIMI || 3), cfg.SERI_BONUS_UST_SINIR || 15)
+        : 0;
+      siparisOdeme += seriBonusu;
+
+      gunlukKazanc += siparisOdeme;
+      teslimEdilenSiparisSayisi += 1;
+      teslimEdilenBardakSayisi += tepsiBardaklari.length;
+      bayatBardakSayisi += buSiparisteBayat;
+
+      olayEkle('teslim', {
+        musteriId: m.id,
+        slot: m.slot,
+        tip: m.tip,
+        kazanc: siparisOdeme,
+        bahsis: bahsisAlindi,
+        seri,
+        seriBonusu,
+        ozelPrim,
+        bardakSayisi: tepsiBardaklari.length
+      });
+
+      musteriler = musteriler.filter(x => x.id !== m.id);
+      return 'tamam';
+    }
+
+    return uyariVer('Bilinmeyen komut', 'bilinmeyen_komut');
+  }
+
+  function musteriSabriBitti(m) {
+    seri = 0;
+    gunlukKazanc = Math.max(0, gunlukKazanc - cfg.KACAN_MUSTERI_CEZASI);
+    kacanMusteriSayisi += 1;
+    olayEkle('kacti', {
+      musteriId: m.id,
+      slot: m.slot,
+      ceza: cfg.KACAN_MUSTERI_CEZASI
+    });
+    musteriler = musteriler.filter(x => x.id !== m.id);
+  }
+
+  // Sabit mikro-adımlarla ilerletme
+  const MIKRO_ADIM = 0.05;
+  let bakiyeSure = 0;
+
+  function tekAdimIlerle(dt) {
+    if (evre !== 'AKTIF') return;
+
+    const gAyar = gunAyariniAl();
+    const dolumSure = aktifDolumSuresi();
+    const acmaSure = aktifAcmaSuresi();
+
+    // 1. Bardak dolum / renk açılma geçişleri ve kirli dönüş sayaçları
+    for (const b of bardaklar) {
+      if (b.gecisTuru === 'dolduruluyor') {
+        b.gecisIlerleme = Math.min(1, b.gecisIlerleme + dt / dolumSure);
+        if (b.gecisIlerleme >= 1) b.gecisTuru = null;
+      } else if (b.gecisTuru === 'aciliyor') {
+        b.gecisIlerleme = Math.min(1, b.gecisIlerleme + dt / acmaSure);
+        if (b.gecisIlerleme >= 1) b.gecisTuru = null;
+      }
+
+      if (b.asama === 'teslim-edildi') {
+        b.kirliDonusKalan -= dt;
+        if (b.kirliDonusKalan <= 1e-9) {
+          b.kirliDonusKalan = 0;
+          b.asama = 'kirli';
+        }
+      }
+    }
+
+    // 2. Yıkama sayacı
+    if (yikama.aktif) {
+      yikama.kalanSure -= dt;
+      if (yikama.kalanSure <= 1e-9) {
+        yikama.aktif = false;
+        yikama.kalanSure = 0;
+        for (const b of bardaklar) {
+          if (b.asama === 'yikaniyor') {
+            b.asama = 'temiz';
+            b.rafSlid = bosRafYeriBul();
+            b.ton = null;
+            b.seker = false;
+            b.limon = false;
+            b.bayat = false;
+          }
+        }
+        olayEkle('yikama_bitti', {});
+      }
+    }
+
+    // 3. Demleme ve bayatlama
+    if (demlik.durum === 'DEMLENIYOR') {
+      demlik.demlemeSayaci -= dt;
+      if (demlik.demlemeSayaci <= 1e-9) {
+        demlik.demlemeSayaci = 0;
+        demlik.kalan = aktifDemKapasitesi();
+        demlik.durum = 'TAZE';
+        demlik.bayatlamaSayaci = 0;
+        olayEkle('dem_hazir', {});
+      }
+    } else if (demlik.durum === 'TAZE' && demlik.kalan > 0) {
+      demlik.bayatlamaSayaci += dt;
+      if (demlik.bayatlamaSayaci + 1e-9 >= aktifBayatlamaSuresi()) {
+        demlik.durum = 'BAYAT';
+        olayEkle('dem_bayatladi', {});
+      }
+    }
+
+    // 4. Mevcut müşterilerin sabrı
+    const mevcutMusteriler = [...musteriler];
+    for (const m of mevcutMusteriler) {
+      m.kalanSabir -= dt;
+      if (m.kalanSabir <= 1e-9) {
+        m.kalanSabir = 0;
+        musteriSabriBitti(m);
+      }
+    }
+
+    // 5. Yeni müşteri gelişi
+    sonrakiMusteriSayaci -= dt;
+    if (sonrakiMusteriSayaci <= 1e-9) {
+      const doluSlotlar = new Set(musteriler.map(x => x.slot));
+      let bosSlot = -1;
+      for (let s = 0; s < cfg.MAX_MUSTERI_SLOTU; s++) {
+        if (!doluSlotlar.has(s)) {
+          bosSlot = s;
+          break;
+        }
+      }
+      if (bosSlot !== -1) {
+        yeniMusteriOlustur(bosSlot);
+      }
+      sonrakiMusteriSayaci = gAyar.gelmeAraligi;
+    }
+
+    // 6. Vardiya süresi ve gün sonu
+    kalanSure -= dt;
+    if (kalanSure <= 1e-9) {
+      kalanSure = 0;
+      const hedefTuttu = gunlukKazanc >= gAyar.hedef;
+      if (hedefTuttu && !gunKasayaIslendi) {
+        kasa += gunlukKazanc;
+        gunKasayaIslendi = true;
+      }
+      if (hedefTuttu && !sonsuzMod && gunIndex === cfg.GUNLER.length - 1) {
+        evre = 'BITIS';
+      } else {
+        evre = 'GUN_SONU';
+      }
+      seciliBardakId = null;
+      olayEkle('gun_bitti', {
+        gun: gAyar.gun,
+        kazanc: gunlukKazanc,
+        hedef: gAyar.hedef,
+        basarili: hedefTuttu,
+        sonsuzMod
+      });
+    }
+  }
+
+  function ilerle(dt) {
+    if (evre !== 'AKTIF' || dt <= 0) return;
+    bakiyeSure += dt;
+    while (bakiyeSure + 1e-12 >= MIKRO_ADIM) {
+      tekAdimIlerle(MIKRO_ADIM);
+      bakiyeSure -= MIKRO_ADIM;
+      if (bakiyeSure < 1e-12) bakiyeSure = 0;
+      if (evre !== 'AKTIF') {
+        bakiyeSure = 0;
+        break;
+      }
+    }
+  }
+
+  function demlikEtiketiOlustur() {
+    if (demlik.durum === 'DEMLENIYOR') return 'Demleniyor...';
+    if (demlik.kalan <= 0 || demlik.durum === 'BITTI') return 'Bitti';
+    if (demlik.durum === 'BAYAT') return 'Bayat';
+    return `Dem: ${demlik.kalan}`;
+  }
+
+  function durum() {
+    const gAyar = gunAyariniAl();
+    const temizBardakSayisi = bardaklar.filter(x => x.asama === 'temiz').length;
+    const kirliBardakSayisi = bardaklar.filter(x => x.asama === 'kirli').length;
+    const tepsiBardaklari = bardaklar.filter(x => x.asama === 'tepside');
+    const bayatlamaSuresi = aktifBayatlamaSuresi();
+    const tazelikOrani = demlik.durum === 'TAZE'
+      ? Math.max(0, Math.min(1, 1 - demlik.bayatlamaSayaci / bayatlamaSuresi))
+      : 0;
+
+    return Object.freeze({
+      gun: gAyar.gun,
+      hedef: gAyar.hedef,
+      evre,
+      sonsuzMod,
+      kalanSure: Math.max(0, Number(kalanSure.toFixed(2))),
+      kazanc: gunlukKazanc,
+      kasa,
+      toplamKampanyaKazanci: oncekiGunlerinKazanci + gunlukKazanc,
+      hedefTuttuMu: gunlukKazanc >= gAyar.hedef,
+      seciliBardakId,
+      temizBardakSayisi,
+      kirliBardakSayisi,
+      toplamBardakKapasitesi: aktifToplamBardak(),
+      tepsiKapasitesi: aktifTepsiKapasitesi(),
+      tepsidekiSayi: tepsiBardaklari.length,
+      seri,
+      enYuksekSeri,
+      yukseltmeler: Object.freeze([...yukseltmeler]),
+      istatistikler: Object.freeze({
+        teslimEdilenSiparis: teslimEdilenSiparisSayisi,
+        teslimEdilenBardak: teslimEdilenBardakSayisi,
+        kacanMusteri: kacanMusteriSayisi,
+        bayatBardak: bayatBardakSayisi,
+        enYuksekSeri
+      }),
+      demlik: Object.freeze({
+        kalan: demlik.kalan,
+        kapasite: aktifDemKapasitesi(),
+        durum: demlik.durum,
+        etiket: demlikEtiketiOlustur(),
+        tazelikOrani: Number(tazelikOrani.toFixed(3)),
+        demlemeIlerleme: demlik.durum === 'DEMLENIYOR'
+          ? Math.min(1, Math.max(0, 1 - demlik.demlemeSayaci / aktifDemlemeSuresi()))
+          : 0,
+        buharAktif: demlik.durum === 'TAZE' && demlik.kalan > 0
+      }),
+      yikama: Object.freeze({
+        aktif: yikama.aktif,
+        kalanSure: Number(yikama.kalanSure.toFixed(2)),
+        ilerleme: yikama.aktif ? Math.min(1, 1 - yikama.kalanSure / aktifYikamaSuresi()) : 0
+      }),
+      bardaklar: Object.freeze(bardaklar.map(b => Object.freeze({ ...b }))),
+      musteriler: Object.freeze(musteriler.map(m => Object.freeze({
+        id: m.id,
+        slot: m.slot,
+        tip: m.tip,
+        siparisMetni: m.siparisMetni,
+        kalanSabir: Number(m.kalanSabir.toFixed(2)),
+        toplamSabir: m.toplamSabir,
+        sabirOrani: Math.max(0, Math.min(1, m.kalanSabir / m.toplamSabir)),
+        sapkaTipi: m.sapkaTipi,
+        ceketRengi: m.ceketRengi,
+        tepsiEslesiyorMu: seciliBardakId === null && tepsiBardaklari.length > 0 && siparisEslesiyorMu(tepsiBardaklari, m.istekler),
+        istekler: Object.freeze(m.istekler.map(k => Object.freeze({ ...k })))
+      })))
+    });
+  }
+
+  function olaylar() {
+    const kopya = bekleyenOlaylar.slice();
+    bekleyenOlaylar.length = 0;
+    return kopya;
+  }
+
+  // İlk kurulum
+  baslat(AYARLAR, AYARLAR.VARSAYILAN_TOHUM);
+
+  return Object.freeze({
+    başlat: baslat,
+    komut,
+    ilerle,
+    durum,
+    olaylar
+  });
+}
+
+/* ============================================================================
+ * 10. ÖZ-TEST MODÜLÜ (#selftest)
+ * Yalnızca oyun çekirdeğinin dışa açık arayüzünü (başlat, komut, ilerle, durum)
+ * kullanır. İç değişkenlere veya Three.js'e dokunmaz.
+ * ============================================================================ */
+function ozTestleriCalistir() {
+  const testCekirdek = oyunCekirdegiOlustur();
+  const sonuclar = [];
+
+  function testEt(ad, fn) {
+    try {
+      fn();
+      console.log(`✅ [GEÇTİ] ${ad}`);
+      sonuclar.push(true);
+    } catch (hata) {
+      console.error(`❌ [KALDI] ${ad} -> ${hata.message}`);
+      sonuclar.push(false);
+    }
+  }
+
+  function dogrula(kosul, mesaj) {
+    if (!kosul) throw new Error(mesaj || 'Doğrulama hatası');
+  }
+
+  // Test 1: Bardak dolarken dem 1 azalır, dem 0 iken dökme reddedilir.
+  testEt('1. Bardak dolarken dem 1 azalır, dem 0 iken dökme reddedilir', () => {
+    testCekirdek.başlat(AYARLAR, 101);
+    testCekirdek.komut('vardiya_baslat');
+    dogrula(testCekirdek.durum().demlik.kalan === 8, 'Başlangıçta dem 8 olmalı');
+
+    // 8 bardağı sırayla doldurup legene atalım
+    for (let i = 0; i < 8; i++) {
+      const s1 = testCekirdek.komut('bardak_sec', i);
+      dogrula(s1 === 'tamam', 'Bardak seçilebilmeli');
+      const s2 = testCekirdek.komut('demlik');
+      dogrula(s2 === 'tamam', 'Dem dökülebilmeli');
+      dogrula(testCekirdek.durum().demlik.kalan === 7 - i, 'Dem 1 azalmalı');
+      testCekirdek.komut('legen'); // hazırlık yerini boşaltmak için
+    }
+
+    // Kirli bardakları yıkayıp 9. dökümü deneyelim (dem 0 iken)
+    testCekirdek.komut('legen');
+    testCekirdek.ilerle(3.1);
+    testCekirdek.komut('bardak_sec', 0);
+    const red = testCekirdek.komut('demlik');
+    dogrula(red !== 'tamam', 'Dem 0 iken dökme reddedilmeli');
+    dogrula(testCekirdek.durum().bardaklar[0].ton === null, 'Bardak boş kalmalı');
+  });
+
+  // Test 2: Demleme sürerken dökme reddedilir, 10 sn sonra dem 8 olur.
+  testEt('2. Demleme sürerken dökme reddedilir, 10 sn sonra dem 8 olur', () => {
+    testCekirdek.başlat(AYARLAR, 102);
+    testCekirdek.komut('vardiya_baslat');
+    // Seçili bardak yokken demliğe tıkla -> dem tazelenir
+    const s = testCekirdek.komut('demlik');
+    dogrula(s === 'tamam', 'Demleme başlamalı');
+    dogrula(testCekirdek.durum().demlik.durum === 'DEMLENIYOR', 'Durum DEMLENIYOR olmalı');
+
+    testCekirdek.komut('bardak_sec', 0);
+    const red = testCekirdek.komut('demlik');
+    dogrula(red !== 'tamam', 'Demlenirken dökme reddedilmeli');
+
+    testCekirdek.ilerle(10.0);
+    dogrula(testCekirdek.durum().demlik.kalan === 8, '10 sn sonra dem 8 olmalı');
+    dogrula(testCekirdek.durum().demlik.durum === 'TAZE', '10 sn sonra dem TAZE olmalı');
+  });
+
+  // Test 3: Dem 60 sn sonra bayatlar, bayat demle doldurulan bardak bayat bayrağı taşır.
+  testEt('3. Dem 60 sn sonra bayatlar, bayat demle doldurulan bardak bayat bayrağı taşır', () => {
+    testCekirdek.başlat(AYARLAR, 103);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(60.0);
+    dogrula(testCekirdek.durum().demlik.durum === 'BAYAT', '60 sn sonra dem BAYAT olmalı');
+    dogrula(testCekirdek.durum().demlik.etiket === 'Bayat', 'Etiket Bayat olmalı');
+    dogrula(testCekirdek.durum().demlik.buharAktif === false, 'Bayat demde buhar kesilmeli');
+
+    testCekirdek.komut('bardak_sec', 0);
+    testCekirdek.komut('demlik');
+    const b = testCekirdek.durum().bardaklar.find(x => x.id === 0);
+    dogrula(b.bayat === true, 'Bayat demle doldurulan bardak bayat bayrağı taşımalı');
+  });
+
+  // Test 4: Boş bardakla semaver reddedilir, koyu bardakla açık olur.
+  testEt('4. Boş bardakla semaver reddedilir, koyu bardakla açık olur', () => {
+    testCekirdek.başlat(AYARLAR, 104);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.komut('bardak_sec', 0);
+    const red = testCekirdek.komut('semaver');
+    dogrula(red !== 'tamam', 'Boş bardakla semaver reddedilmeli');
+    dogrula(testCekirdek.durum().bardaklar[0].ton === null, 'Bardak değişmemeli');
+
+    testCekirdek.komut('demlik');
+    dogrula(testCekirdek.durum().bardaklar[0].ton === 'koyu', 'Önce koyu olmalı');
+    const kabul = testCekirdek.komut('semaver');
+    dogrula(kabul === 'tamam', 'Koyu bardakla semaver kabul edilmeli');
+    dogrula(testCekirdek.durum().bardaklar[0].ton === 'acik', 'Bardak açık çaya dönmeli');
+  });
+
+  // Test 5: Tepsi 4 bardaktan fazlasını kabul etmez.
+  testEt('5. Tepsi 4 bardaktan fazlasını kabul etmez', () => {
+    testCekirdek.başlat(AYARLAR, 105);
+    testCekirdek.komut('vardiya_baslat');
+    for (let i = 0; i < 4; i++) {
+      testCekirdek.komut('bardak_sec', i);
+      testCekirdek.komut('demlik');
+      const s = testCekirdek.komut('tepsi');
+      dogrula(s === 'tamam', `${i + 1}. bardak tepsiye konabilmeli`);
+    }
+    testCekirdek.komut('bardak_sec', 4);
+    testCekirdek.komut('demlik');
+    const red = testCekirdek.komut('tepsi');
+    dogrula(red !== 'tamam', '5. bardak tepsiye kabul edilmemeli');
+    const tepsidekiler = testCekirdek.durum().bardaklar.filter(x => x.asama === 'tepside');
+    dogrula(tepsidekiler.length === 4, 'Tepside en çok 4 bardak olmalı');
+  });
+
+  // Test 6: Birebir eşleşen tepsi teslim edilir, kazanç doğru hesaplanır (bayat ve bahşiş dahil).
+  testEt('6. Birebir eşleşen tepsi teslim edilir, kazanç doğru hesaplanır (bayat ve bahşiş dahil)', () => {
+    testCekirdek.başlat(AYARLAR, 106);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(2.1); // İlk müşteri gelsin
+    const m1 = testCekirdek.durum().musteriler[0];
+    dogrula(!!m1, 'İlk müşteri gelmiş olmalı');
+
+    // İlk müşterinin siparişini taze demle ve yüksek sabırla (bahşişli) hazırla
+    m1.istekler.forEach((istek, idx) => {
+      testCekirdek.komut('bardak_sec', idx);
+      testCekirdek.komut('demlik');
+      if (istek.ton === 'acik') testCekirdek.komut('semaver');
+      if (istek.seker) testCekirdek.komut('sekerlik');
+      testCekirdek.komut('tepsi');
+    });
+
+    const teslim1 = testCekirdek.komut('musteri', m1.id);
+    dogrula(teslim1 === 'tamam', 'Eşleşen tepsi teslim edilmeli');
+    const beklenenKazanc1 = m1.istekler.length * 10 + 5; // taze (10) + bahşiş (+5)
+    dogrula(testCekirdek.durum().kazanc === beklenenKazanc1, `Kazanç ${beklenenKazanc1} TL olmalı`);
+
+    // Şimdi bayat dem + bahşişsiz teslimi doğrulayalım
+    testCekirdek.başlat(AYARLAR, 106);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(60.0); // Dem bayatlasın
+    const mBayat = testCekirdek.durum().musteriler[0];
+    // Müşterinin sabrını yarının altına indirmek için yanlış tepsiyle sabır düşürelim veya bekletelim
+    mBayat.istekler.forEach((istek, idx) => {
+      testCekirdek.komut('bardak_sec', idx);
+      testCekirdek.komut('demlik'); // Bayat dem
+      if (istek.ton === 'acik') testCekirdek.komut('semaver');
+      if (istek.seker) testCekirdek.komut('sekerlik');
+      testCekirdek.komut('tepsi');
+    });
+    const sabirYaridanCokMu = mBayat.kalanSabir > mBayat.toplamSabir * 0.5;
+    const beklenenBayatKazanc = mBayat.istekler.length * 5 + (sabirYaridanCokMu ? 5 : 0);
+    testCekirdek.komut('musteri', mBayat.id);
+    dogrula(testCekirdek.durum().kazanc === beklenenBayatKazanc, 'Bayat bardak 5 TL ödemeli');
+  });
+
+  // Test 7: Uyuşmayan tepsi reddedilir, tepsi korunur, sabır 5 sn azalır.
+  testEt('7. Uyuşmayan tepsi reddedilir, tepsi korunur, sabır 5 sn azalır', () => {
+    testCekirdek.başlat(AYARLAR, 107);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(2.1);
+    const m = testCekirdek.durum().musteriler[0];
+    const oncekiSabir = m.kalanSabir;
+
+    // Müşterinin istediğinden farklı bir bardak koyalım (şeker durumu ters)
+    testCekirdek.komut('bardak_sec', 0);
+    testCekirdek.komut('demlik');
+    if (!m.istekler[0].seker) testCekirdek.komut('sekerlik');
+    testCekirdek.komut('tepsi');
+
+    const red = testCekirdek.komut('musteri', m.id);
+    dogrula(red !== 'tamam', 'Uyuşmayan tepsi reddedilmeli');
+    const tepsidekiler = testCekirdek.durum().bardaklar.filter(x => x.asama === 'tepside');
+    dogrula(tepsidekiler.length === 1, 'Tepsi bozulmadan korunmalı');
+    const yeniM = testCekirdek.durum().musteriler.find(x => x.id === m.id);
+    dogrula(Math.abs((oncekiSabir - yeniM.kalanSabir) - 5) < 0.01, 'Sabır 5 sn azalmalı');
+  });
+
+  // Test 8: Sabrı biten müşteri gider, kazanç 10 TL düşer ve 0'ın altına inmez.
+  testEt('8. Sabrı biten müşteri gider, kazanç 10 TL düşer ve 0\'ın altına inmez', () => {
+    testCekirdek.başlat(AYARLAR, 108);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(2.1);
+    const ilkMusteriId = testCekirdek.durum().musteriler[0].id;
+    // Kazanç 0 iken müşteri kaçsın (60 sn sabır)
+    testCekirdek.ilerle(60.1);
+    dogrula(!testCekirdek.durum().musteriler.some(x => x.id === ilkMusteriId), 'Sabrı biten müşteri gitmeli');
+    dogrula(testCekirdek.durum().kazanc === 0, 'Kazanç 0\'ın altına inmemeli');
+    dogrula(testCekirdek.durum().istatistikler.kacanMusteri >= 1, 'Kaçan müşteri sayısı artmalı');
+  });
+
+  // Test 9: Teslimden 6 sn sonra bardaklar kirli olur, yıkamadan 3 sn sonra temiz olur.
+  testEt('9. Teslimden 6 sn sonra bardaklar kirli olur, yıkamadan 3 sn sonra temiz olur', () => {
+    testCekirdek.başlat(AYARLAR, 109);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(2.1);
+    const m = testCekirdek.durum().musteriler[0];
+    const bardakAdet = m.istekler.length;
+    m.istekler.forEach((istek, idx) => {
+      testCekirdek.komut('bardak_sec', idx);
+      testCekirdek.komut('demlik');
+      if (istek.ton === 'acik') testCekirdek.komut('semaver');
+      if (istek.seker) testCekirdek.komut('sekerlik');
+      testCekirdek.komut('tepsi');
+    });
+    testCekirdek.komut('musteri', m.id);
+    dogrula(testCekirdek.durum().kirliBardakSayisi === 0, 'Teslim anında henüz legende kirli olmamalı');
+
+    testCekirdek.ilerle(6.0);
+    dogrula(testCekirdek.durum().kirliBardakSayisi === bardakAdet, '6 sn sonra bardaklar legende kirli olmalı');
+
+    const yikaSonuc = testCekirdek.komut('legen');
+    dogrula(yikaSonuc === 'tamam', 'Yıkama başlamalı');
+    testCekirdek.ilerle(3.0);
+    dogrula(testCekirdek.durum().temizBardakSayisi === 8, '3 sn yıkamadan sonra 8 bardak da temiz olmalı');
+  });
+
+  // Test 10: Vardiya sonunda hedef tutmuşsa sonraki güne, tutmamışsa tekrara izin verilir.
+  testEt('10. Vardiya sonunda hedef tutmuşsa sonraki güne, tutmamışsa tekrara izin verilir', () => {
+    // 10a: Hedef tutmamışken
+    testCekirdek.başlat(AYARLAR, 110);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(90.0);
+    dogrula(testCekirdek.durum().evre === 'GUN_SONU', '90 sn sonunda GUN_SONU olmalı');
+    dogrula(testCekirdek.komut('sonraki_gun') !== 'tamam', 'Hedef tutmadan sonraki güne geçilememeli');
+    dogrula(testCekirdek.komut('gunu_tekrarla') === 'tamam', 'Günü tekrarla çalışmalı');
+    dogrula(testCekirdek.durum().gun === 1 && testCekirdek.durum().evre === 'GUN_BASI', 'Gün 1 başına dönmeli');
+
+    // 10b: Hedef tutmuşken
+    testCekirdek.komut('vardiya_baslat');
+    while (testCekirdek.durum().kazanc < 60 && testCekirdek.durum().evre === 'AKTIF') {
+      testCekirdek.ilerle(1.0);
+      if (testCekirdek.durum().kirliBardakSayisi > 0) testCekirdek.komut('legen');
+      if (testCekirdek.durum().demlik.kalan < 3 && testCekirdek.durum().demlik.durum !== 'DEMLENIYOR') {
+        testCekirdek.komut('bosa_tikla');
+        testCekirdek.komut('demlik');
+      }
+      const m = testCekirdek.durum().musteriler[0];
+      if (m && testCekirdek.durum().temizBardakSayisi >= m.istekler.length && testCekirdek.durum().demlik.kalan >= m.istekler.length && testCekirdek.durum().demlik.durum !== 'DEMLENIYOR') {
+        m.istekler.forEach(istek => {
+          const temizB = testCekirdek.durum().bardaklar.find(x => x.asama === 'temiz');
+          testCekirdek.komut('bardak_sec', temizB.id);
+          testCekirdek.komut('demlik');
+          if (istek.ton === 'acik') testCekirdek.komut('semaver');
+          if (istek.seker) testCekirdek.komut('sekerlik');
+          if (istek.limon) testCekirdek.komut('limonluk');
+          testCekirdek.komut('tepsi');
+        });
+        testCekirdek.komut('musteri', m.id);
+      }
+    }
+    testCekirdek.ilerle(90.0);
+    dogrula(testCekirdek.durum().hedefTuttuMu === true, 'Hedef (40 TL) tutmuş olmalı');
+    dogrula(testCekirdek.komut('sonraki_gun') === 'tamam', 'Hedef tutunca sonraki güne geçilmeli');
+    dogrula(testCekirdek.durum().gun === 2 && testCekirdek.durum().hedef === 70, 'Gün 2 ve hedef 70 TL olmalı');
+  });
+
+  // Test 11: Aynı tohum aynı sipariş dizisini üretir.
+  testEt('11. Aynı tohum aynı sipariş dizisini üretir', () => {
+    const c1 = oyunCekirdegiOlustur();
+    const c2 = oyunCekirdegiOlustur();
+    c1.başlat(AYARLAR, 99999);
+    c2.başlat(AYARLAR, 99999);
+    c1.komut('vardiya_baslat');
+    c2.komut('vardiya_baslat');
+    c1.ilerle(30.0);
+    c2.ilerle(30.0);
+    const mList1 = c1.durum().musteriler.map(m => m.siparisMetni).join('|');
+    const mList2 = c2.durum().musteriler.map(m => m.siparisMetni).join('|');
+    dogrula(mList1.length > 0 && mList1 === mList2, `Sipariş dizileri birebir aynı olmalı: ${mList1}`);
+  });
+
+  // Test 12: Aynı toplam süre, tek seferde de verilse 0,1 sn'lik adımlarla da verilse aynı sonucu doğurur.
+  testEt('12. Aynı toplam süre tek seferde de verilse 0,1 sn\'lik adımlarla da verilse aynı sonucu doğurur', () => {
+    const cTek = oyunCekirdegiOlustur();
+    const cAdim = oyunCekirdegiOlustur();
+    cTek.başlat(AYARLAR, 424242);
+    cAdim.başlat(AYARLAR, 424242);
+    cTek.komut('vardiya_baslat');
+    cAdim.komut('vardiya_baslat');
+
+    // Toplam 25 saniyeyi cTek'e tek seferde, cAdim'a 250 adet 0.1 sn adımla verelim
+    cTek.ilerle(25.0);
+    for (let i = 0; i < 250; i++) {
+      cAdim.ilerle(0.1);
+    }
+
+    const d1 = cTek.durum();
+    const d2 = cAdim.durum();
+    dogrula(d1.kalanSure === d2.kalanSure, 'Kalan süreler aynı olmalı');
+    dogrula(d1.musteriler.length === d2.musteriler.length, 'Müşteri sayıları aynı olmalı');
+    for (let i = 0; i < d1.musteriler.length; i++) {
+      dogrula(d1.musteriler[i].siparisMetni === d2.musteriler[i].siparisMetni, 'Siparişler aynı olmalı');
+      dogrula(d1.musteriler[i].kalanSabir === d2.musteriler[i].kalanSabir, 'Müşteri sabırları aynı olmalı');
+    }
+  });
+
+  // Test 13: Limon ekleme kuralları ve limonlu çay siparişi eşleşmesi.
+  testEt('13. Limon boş bardağa konmaz, dolu bardağa eklenir ve eşleşmede kontrol edilir', () => {
+    testCekirdek.başlat(AYARLAR, 113);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.komut('bardak_sec', 0);
+    dogrula(testCekirdek.komut('limonluk') !== 'tamam', 'Boş bardağa limon konmamalı');
+    testCekirdek.komut('demlik');
+    dogrula(testCekirdek.komut('limonluk') === 'tamam', 'Dolu bardağa limon eklenebilmeli');
+    dogrula(testCekirdek.durum().bardaklar[0].limon === true, 'Limon bayrağı true olmalı');
+    dogrula(testCekirdek.komut('limonluk') !== 'tamam', 'İkinci kez limon eklenmemeli');
+  });
+
+  // Test 14: Ardışık teslimlerde seri artar ve 2. teslimden itibaren seri bonusu eklenir.
+  testEt('14. Ardışık teslimlerde seri ve seri bonusu çalışır, yanlış teslim seriyi sıfırlar', () => {
+    testCekirdek.başlat(AYARLAR, 114);
+    testCekirdek.komut('vardiya_baslat');
+    testCekirdek.ilerle(15.0); // 2 müşteri gelsin
+    const musteriler = testCekirdek.durum().musteriler;
+    dogrula(musteriler.length >= 2, 'En az 2 müşteri olmalı');
+
+    // 1. teslim -> seri 1 (bonus 0)
+    const m1 = musteriler[0];
+    m1.istekler.forEach(istek => {
+      const b = testCekirdek.durum().bardaklar.find(x => x.asama === 'temiz');
+      testCekirdek.komut('bardak_sec', b.id);
+      testCekirdek.komut('demlik');
+      if (istek.ton === 'acik') testCekirdek.komut('semaver');
+      if (istek.seker) testCekirdek.komut('sekerlik');
+      if (istek.limon) testCekirdek.komut('limonluk');
+      testCekirdek.komut('tepsi');
+    });
+    testCekirdek.komut('musteri', m1.id);
+    dogrula(testCekirdek.durum().seri === 1, 'İlk teslimde seri 1 olmalı');
+
+    // 2. teslim -> seri 2 (bonus +3 TL)
+    const m2 = testCekirdek.durum().musteriler[0];
+    const oncekiKazanc = testCekirdek.durum().kazanc;
+    m2.istekler.forEach(istek => {
+      const b = testCekirdek.durum().bardaklar.find(x => x.asama === 'temiz');
+      testCekirdek.komut('bardak_sec', b.id);
+      testCekirdek.komut('demlik');
+      if (istek.ton === 'acik') testCekirdek.komut('semaver');
+      if (istek.seker) testCekirdek.komut('sekerlik');
+      if (istek.limon) testCekirdek.komut('limonluk');
+      testCekirdek.komut('tepsi');
+    });
+    testCekirdek.komut('musteri', m2.id);
+    dogrula(testCekirdek.durum().seri === 2, 'İkinci teslimde seri 2 olmalı');
+    dogrula(testCekirdek.durum().kazanc >= oncekiKazanc + m2.istekler.length * 10 + 3, '2x seri bonusu (+3 TL) eklenmeli');
+  });
+
+  // Test 15: Gün sonu kasa birikir ve yükseltme alınınca kapasite/süre güncellenir.
+  testEt('15. Yükseltme kasa ile satın alınır ve kapasiteyi artırır', () => {
+    testCekirdek.başlat(AYARLAR, 115);
+    testCekirdek.komut('vardiya_baslat');
+    while (testCekirdek.durum().kazanc < 50 && testCekirdek.durum().evre === 'AKTIF') {
+      testCekirdek.ilerle(1.0);
+      if (testCekirdek.durum().kirliBardakSayisi > 0) testCekirdek.komut('legen');
+      if (testCekirdek.durum().demlik.kalan < 3 && testCekirdek.durum().demlik.durum !== 'DEMLENIYOR') {
+        testCekirdek.komut('bosa_tikla');
+        testCekirdek.komut('demlik');
+      }
+      const m = testCekirdek.durum().musteriler[0];
+      if (m && testCekirdek.durum().temizBardakSayisi >= m.istekler.length && testCekirdek.durum().demlik.kalan >= m.istekler.length && testCekirdek.durum().demlik.durum !== 'DEMLENIYOR') {
+        m.istekler.forEach(istek => {
+          const b = testCekirdek.durum().bardaklar.find(x => x.asama === 'temiz');
+          testCekirdek.komut('bardak_sec', b.id);
+          testCekirdek.komut('demlik');
+          if (istek.ton === 'acik') testCekirdek.komut('semaver');
+          if (istek.seker) testCekirdek.komut('sekerlik');
+          if (istek.limon) testCekirdek.komut('limonluk');
+          testCekirdek.komut('tepsi');
+        });
+        testCekirdek.komut('musteri', m.id);
+      }
+    }
+    testCekirdek.ilerle(90.0);
+    dogrula(testCekirdek.durum().kasa >= 50, 'Hedef tutunca kasa dolmalı');
+    dogrula(testCekirdek.komut('yukseltme_al', 'hizli_demlik') === 'tamam', 'Bakır Turbo Demlik alınabilmeli');
+    testCekirdek.komut('sonraki_gun');
+    dogrula(testCekirdek.durum().demlik.kapasite === 12 && testCekirdek.durum().demlik.kalan === 12, 'Yeni günde dem kapasitesi 12 olmalı');
+  });
+
+  // Test 16: 3. gün sonunda Sonsuz Çarşı Modu'na geçilebilir.
+  testEt('16. 3 günlük kampanya sonunda sonsuz_baslat ile Gün 4 açılır', () => {
+    const hizliCfg = {
+      ...AYARLAR,
+      GUNLER: [
+        { ...AYARLAR.GUNLER[0], hedef: 0 },
+        { ...AYARLAR.GUNLER[1], hedef: 0 },
+        { ...AYARLAR.GUNLER[2], hedef: 0 }
+      ]
+    };
+    testCekirdek.başlat(hizliCfg, 116);
+    for (let g = 0; g < 3; g++) {
+      testCekirdek.komut('vardiya_baslat');
+      testCekirdek.ilerle(90.0);
+      if (g < 2) testCekirdek.komut('sonraki_gun');
+    }
+    dogrula(testCekirdek.durum().evre === 'BITIS', '3. gün sonunda BITIS olmalı');
+    dogrula(testCekirdek.komut('sonsuz_baslat') === 'tamam', 'Sonsuz mod başlamalı');
+    dogrula(testCekirdek.durum().gun === 4 && testCekirdek.durum().sonsuzMod === true, 'Gün 4 ve sonsuzMod true olmalı');
+  });
+
+  const gecen = sonuclar.filter(Boolean).length;
+  const toplam = sonuclar.length;
+  console.log(`Öz-test: ${gecen}/${toplam} geçti`);
+  window.__selftestSonuc = { gecen, toplam, basarili: gecen === toplam };
+}
+
+if (window.location.hash === '#selftest') {
+  ozTestleriCalistir();
+}
+window.addEventListener('hashchange', () => {
+  if (window.location.hash === '#selftest') {
+    ozTestleriCalistir();
+  }
+});
+
+/* ============================================================================
+ * 3. PROSEDÜREL SES MOTORU (Web Audio API - Harici Dosya Gerektirmez)
+ * ============================================================================ */
+function sesMotoruOlustur() {
+  let ctx = null;
+  let sessiz = false;
+  let gurultuTamponu = null;
+
+  function hazirla() {
+    if (sessiz) return null;
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+      // 1 saniyelik beyaz gürültü tamponu (dökme ve su sesleri için)
+      const len = ctx.sampleRate;
+      gurultuTamponu = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = gurultuTamponu.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    }
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    return ctx;
+  }
+
+  function tonCal(freq, sure, tip = 'sine', hacim = 0.12, gecikme = 0, bitisFreq = null) {
+    const c = hazirla();
+    if (!c) return;
+    const t0 = c.currentTime + gecikme;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = tip;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (bitisFreq) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, bitisFreq), t0 + sure);
+    }
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(hacim, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + sure);
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.start(t0);
+    osc.stop(t0 + sure + 0.02);
+  }
+
+  function gurultuCal(sure, minFreq, maxFreq, q = 3, hacim = 0.09, gecikme = 0) {
+    const c = hazirla();
+    if (!c || !gurultuTamponu) return;
+    const t0 = c.currentTime + gecikme;
+    const src = c.createBufferSource();
+    src.buffer = gurultuTamponu;
+    src.loop = true;
+    const filter = c.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = q;
+    filter.frequency.setValueAtTime(minFreq, t0);
+    filter.frequency.exponentialRampToValueAtTime(maxFreq, t0 + sure);
+
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(hacim, t0 + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + sure);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(c.destination);
+    src.start(t0);
+    src.stop(t0 + sure + 0.02);
+  }
+
+  return {
+    uyandir: () => { hazirla(); },
+    sessizMi: () => sessiz,
+    sessizDegistir: () => { sessiz = !sessiz; return sessiz; },
+    bardakSec: () => {
+      tonCal(2350, 0.09, 'sine', 0.06);
+      tonCal(3720, 0.06, 'triangle', 0.04, 0.01);
+    },
+    cayDok: () => {
+      gurultuCal(0.42, 650, 1450, 4.2, 0.11);
+      tonCal(420, 0.32, 'sine', 0.025, 0.03, 720);
+    },
+    suAc: () => {
+      gurultuCal(0.38, 1200, 2400, 3.0, 0.095);
+    },
+    sekerAt: () => {
+      tonCal(1480, 0.06, 'sine', 0.055, 0, 920);
+      tonCal(2890, 0.08, 'sine', 0.04, 0.035);
+    },
+    limonAt: () => {
+      tonCal(620, 0.09, 'sine', 0.06, 0, 1080);
+      gurultuCal(0.08, 1600, 900, 2, 0.04, 0.01);
+    },
+    tepsiKoy: () => {
+      tonCal(1920, 0.12, 'triangle', 0.065);
+      tonCal(2760, 0.08, 'sine', 0.045, 0.02);
+    },
+    bardakDok: () => {
+      gurultuCal(0.22, 950, 380, 2.2, 0.08);
+    },
+    demlemeBasla: () => {
+      gurultuCal(0.45, 320, 780, 3.5, 0.085);
+      tonCal(220, 0.25, 'sine', 0.05, 0, 310);
+    },
+    demHazir: () => {
+      tonCal(880, 0.22, 'triangle', 0.09, 0);
+      tonCal(1174.66, 0.34, 'triangle', 0.095, 0.12);
+    },
+    demBayat: () => {
+      tonCal(370, 0.24, 'sawtooth', 0.045, 0, 290);
+    },
+    yikamaBasla: () => {
+      gurultuCal(0.55, 500, 1750, 2.0, 0.09);
+      tonCal(520, 0.12, 'sine', 0.04, 0.1, 880);
+    },
+    yikamaBitti: () => {
+      tonCal(1046, 0.14, 'sine', 0.07, 0);
+      tonCal(1318, 0.16, 'sine', 0.07, 0.07);
+      tonCal(1568, 0.24, 'sine', 0.08, 0.14);
+    },
+    musteriGeldi: () => {
+      tonCal(1396, 0.16, 'triangle', 0.065, 0);
+      tonCal(1760, 0.22, 'triangle', 0.055, 0.08);
+    },
+    teslimBasarili: (seri = 1) => {
+      const carpan = Math.pow(1.06, Math.min(seri - 1, 6));
+      tonCal(587.33 * carpan, 0.13, 'triangle', 0.09, 0);
+      tonCal(880.0 * carpan, 0.16, 'triangle', 0.095, 0.07);
+      tonCal(1174.66 * carpan, 0.26, 'sine', 0.09, 0.14);
+      // Madeni para şıngırtısı
+      tonCal(3200, 0.07, 'sine', 0.045, 0.18);
+      tonCal(4150, 0.09, 'sine', 0.035, 0.22);
+    },
+    hata: () => {
+      tonCal(240, 0.15, 'sawtooth', 0.06, 0, 170);
+      tonCal(180, 0.18, 'sawtooth', 0.05, 0.08, 130);
+    },
+    musteriKacti: () => {
+      tonCal(392, 0.22, 'triangle', 0.08, 0, 311);
+      tonCal(293, 0.32, 'triangle', 0.08, 0.18, 220);
+    },
+    yukseltmeAl: () => {
+      tonCal(659, 0.12, 'triangle', 0.08, 0);
+      tonCal(880, 0.12, 'triangle', 0.08, 0.08);
+      tonCal(1046, 0.15, 'triangle', 0.09, 0.16);
+      tonCal(1318, 0.30, 'sine', 0.095, 0.24);
+    },
+    gunBitti: (basarili) => {
+      if (basarili) {
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+          tonCal(f, 0.28, 'triangle', 0.09, idx * 0.1);
+        });
+      } else {
+        tonCal(440, 0.24, 'triangle', 0.07, 0);
+        tonCal(392, 0.26, 'triangle', 0.07, 0.16);
+        tonCal(329, 0.38, 'triangle', 0.07, 0.32);
+      }
+    }
+  };
+}
+
+/* ============================================================================
+ * 5. SAHNE İNŞACISI (Three.js 3D Sahne, Dönel Geometri, Canvas Dokular, Işıklar)
+ * ============================================================================ */
+function ahsapDokuUret() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#6e411f';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Tahta plakalar ve damar çizgileri
+  for (let i = 0; i < 8; i++) {
+    const y = i * 64;
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(40, 18, 6, 0.16)' : 'rgba(160, 95, 45, 0.12)';
+    ctx.fillRect(0, y, 512, 62);
+    ctx.fillStyle = '#381d0a';
+    ctx.fillRect(0, y + 62, 512, 2);
+  }
+  ctx.strokeStyle = 'rgba(42, 20, 8, 0.35)';
+  ctx.lineWidth = 2;
+  for (let k = 0; k < 90; k++) {
+    ctx.beginPath();
+    const y0 = (k * 37) % 512;
+    ctx.moveTo(0, y0);
+    ctx.bezierCurveTo(170, y0 + ((k % 5) - 2) * 8, 340, y0 - ((k % 4) - 2) * 8, 512, y0 + ((k % 3) - 1) * 5);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 1);
+  return tex;
+}
+
+function zeminDokuUret() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#4a3d35';
+  ctx.fillRect(0, 0, 512, 512);
+  const boyut = 64;
+  for (let r = 0; r < 8; r++) {
+    for (let col = 0; col < 8; col++) {
+      const kayma = (r % 2) * 32;
+      const x = (col * boyut + kayma) % 512;
+      const y = r * boyut;
+      ctx.fillStyle = ((r + col) % 2 === 0) ? '#5c4b40' : '#524238';
+      ctx.fillRect(x + 3, y + 3, boyut - 6, boyut - 6);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(6, 6);
+  return tex;
+}
+
+function tabelaDokuUret(yazi, arkaRenk, cerceveRenk, yaziRenk) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 160;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = arkaRenk;
+  ctx.fillRect(0, 0, 512, 160);
+  ctx.strokeStyle = cerceveRenk;
+  ctx.lineWidth = 10;
+  ctx.strokeRect(8, 8, 496, 144);
+  ctx.fillStyle = yaziRenk;
+  ctx.font = 'bold 64px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(yazi, 256, 82);
+  return new THREE.CanvasTexture(c);
+}
+
+function gokyuzuDokuUret() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 512;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0.0, '#181024');
+  grad.addColorStop(0.35, '#3b1d2e');
+  grad.addColorStop(0.62, '#8c3c27');
+  grad.addColorStop(0.80, '#d97638');
+  grad.addColorStop(1.0, '#3a1c0e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 512);
+  return new THREE.CanvasTexture(c);
+}
+
+function sahneInsaEt(container) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#2a160d');
+  scene.fog = new THREE.FogExp2('#2e170e', 0.025);
+
+  // Sıcak akşamüstü gökyüzü kubbesi
+  const skyDome = new THREE.Mesh(
+    new THREE.SphereGeometry(42, 24, 16),
+    new THREE.MeshBasicMaterial({ map: gokyuzuDokuUret(), side: THREE.BackSide, fog: false })
+  );
+  scene.add(skyDome);
+
+  // Başlangıç kamerası: ekran oranına (mobil dikey / yatay / masaüstü) göre otomatik ayarlanır.
+  const KAMERA_VARSAYILAN_POS = new THREE.Vector3(0, 3.85, 5.15);
+  const KAMERA_VARSAYILAN_HEDEF = new THREE.Vector3(0, 1.32, -0.35);
+
+  const mobilCihazMi = () => window.innerWidth <= 900 || (navigator.maxTouchPoints > 0 && window.innerWidth <= 1180);
+
+  const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.copy(KAMERA_VARSAYILAN_POS);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobilCihazMi() ? 1.75 : 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.18;
+  container.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.copy(KAMERA_VARSAYILAN_HEDEF);
+  controls.enablePan = false;
+  controls.minDistance = 2.6;
+  controls.maxDistance = 13.5;
+  controls.minPolarAngle = 0.25;
+  controls.maxPolarAngle = Math.PI / 2 - 0.06;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  let kameraKilitli = mobilCihazMi();
+  controls.enabled = !kameraKilitli;
+
+  function kameraUyarla(sifirlaKonum = true) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const oran = w / Math.max(1, h);
+    camera.aspect = oran;
+
+    if (oran < 0.85) {
+      // Mobil dikey (portrait) mod: tüm 6.2m tezgâh (raf + legen + askılı tepsi) kenardan taşmadan sığar
+      camera.fov = 62;
+      const uzaklikCarpani = Math.min(2.38, Math.max(1.25, 1.12 / Math.max(0.42, oran)));
+      KAMERA_VARSAYILAN_POS.set(0, 4.45 + (uzaklikCarpani - 1) * 1.15, 5.15 * uzaklikCarpani);
+      KAMERA_VARSAYILAN_HEDEF.set(0, 0.88, -0.25);
+    } else if (oran < 1.25) {
+      // Tablet / kare ekran
+      camera.fov = 50;
+      KAMERA_VARSAYILAN_POS.set(0, 4.15, 6.15);
+      KAMERA_VARSAYILAN_HEDEF.set(0, 0.95, -0.30);
+    } else {
+      // Masaüstü veya yatay telefon (alt hızlı kontrol barı için hafifçe yukarı çerçeveli)
+      camera.fov = 46;
+      KAMERA_VARSAYILAN_POS.set(0, 3.95, 5.45);
+      KAMERA_VARSAYILAN_HEDEF.set(0, 1.05, -0.30);
+    }
+
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    if (sifirlaKonum) {
+      camera.position.copy(KAMERA_VARSAYILAN_POS);
+      controls.target.copy(KAMERA_VARSAYILAN_HEDEF);
+      controls.update();
+    }
+  }
+
+  function kameraSifirla() {
+    kameraUyarla(true);
+  }
+
+  function kameraKilidiDegistir() {
+    kameraKilitli = !kameraKilitli;
+    controls.enabled = !kameraKilitli;
+    return kameraKilitli;
+  }
+
+  kameraUyarla(true);
+
+  // Sıcak, amber tonlu, alçak açılı akşamüstü ışığı ve yumuşak gölgeler
+  const hemiLight = new THREE.HemisphereLight('#ffc178', '#3d2210', 0.92);
+  scene.add(hemiLight);
+
+  const golgeBoyut = mobilCihazMi() ? 1024 : 2048;
+  const sunLight = new THREE.DirectionalLight(AYARLAR.RENKLER.AMBER_ISIK, 2.7);
+  sunLight.position.set(-5.8, 5.2, 3.4);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = golgeBoyut;
+  sunLight.shadow.mapSize.height = golgeBoyut;
+  sunLight.shadow.camera.near = 0.5;
+  sunLight.shadow.camera.far = 24;
+  const d = 7.2;
+  sunLight.shadow.camera.left = -d;
+  sunLight.shadow.camera.right = d;
+  sunLight.shadow.camera.top = d;
+  sunLight.shadow.camera.bottom = -d;
+  sunLight.shadow.bias = -0.0005;
+  scene.add(sunLight);
+
+  const warmPoint = new THREE.PointLight('#ff9436', 1.5, 10);
+  warmPoint.position.set(0, 2.7, 0.8);
+  scene.add(warmPoint);
+
+  // Zemin (Çarşı taş sokağı)
+  const floorGeo = new THREE.PlaneGeometry(30, 30);
+  const floorMat = new THREE.MeshStandardMaterial({
+    map: zeminDokuUret(),
+    roughness: 0.86,
+    metalness: 0.05
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  const ahsapTex = ahsapDokuUret();
+
+  // --- AHŞAP TEZGÂH (Genişletilmiş: 6.2m, limonluk + tüm istasyonlar rahatça sığar) ---
+  const tezgahGrup = new THREE.Group();
+  const tezgahGovde = new THREE.Mesh(
+    new THREE.BoxGeometry(6.15, 1.0, 1.18),
+    new THREE.MeshStandardMaterial({ map: ahsapTex, roughness: 0.72, metalness: 0.08 })
+  );
+  tezgahGovde.position.set(0, 0.5, 0.55);
+  tezgahGovde.castShadow = true;
+  tezgahGovde.receiveShadow = true;
+  tezgahGrup.add(tezgahGovde);
+
+  const tezgahUstTabla = new THREE.Mesh(
+    new THREE.BoxGeometry(6.32, 0.08, 1.30),
+    new THREE.MeshStandardMaterial({ map: ahsapTex, roughness: 0.55, metalness: 0.1 })
+  );
+  tezgahUstTabla.position.set(0, 1.04, 0.55);
+  tezgahUstTabla.castShadow = true;
+  tezgahUstTabla.receiveShadow = true;
+  tezgahGrup.add(tezgahUstTabla);
+  scene.add(tezgahGrup);
+
+  const TEZGAH_Y = 1.08;
+
+  // --- ÇAY OCAĞI ÇARDAK DİREKLERİ VE TABELASI ---
+  const direkMat = new THREE.MeshStandardMaterial({ color: '#472814', roughness: 0.82 });
+  [-3.18, 3.18].forEach(dx => {
+    const direk = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.9, 0.14), direkMat);
+    direk.position.set(dx, 1.95, 0.05);
+    direk.castShadow = true;
+    scene.add(direk);
+  });
+  const ustKiris = new THREE.Mesh(new THREE.BoxGeometry(6.58, 0.14, 0.16), direkMat);
+  ustKiris.position.set(0, 3.84, 0.05);
+  ustKiris.castShadow = true;
+  scene.add(ustKiris);
+
+  const ocakTabelaTex = tabelaDokuUret('ÇAY OCAĞI', '#2b1307', '#e0a952', '#ffcf70');
+  const ocakTabela = new THREE.Mesh(
+    new THREE.BoxGeometry(1.95, 0.46, 0.08),
+    new THREE.MeshStandardMaterial({ map: ocakTabelaTex, roughness: 0.45 })
+  );
+  ocakTabela.position.set(0, 3.60, 0.10);
+  scene.add(ocakTabela);
+
+  // --- ASILI OSMANLI ÇARŞI FENERLERİ (3 adet, hafif rüzgar salınımlı) ---
+  const fenerler = [];
+  const fenerKabloGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.45, 6);
+  const fenerGovdeGeo = new THREE.CylinderGeometry(0.09, 0.06, 0.22, 6);
+  const fenerSapkaGeo = new THREE.ConeGeometry(0.12, 0.09, 6);
+  const fenerKabloMat = new THREE.MeshBasicMaterial({ color: '#1f1208' });
+  const fenerPirincMat = new THREE.MeshStandardMaterial({ color: '#c99438', metalness: 0.8, roughness: 0.25 });
+
+  [-2.1, 0, 2.1].forEach((fx, idx) => {
+    const fPivot = new THREE.Group();
+    fPivot.position.set(fx, 3.22, -2.05);
+
+    const kablo = new THREE.Mesh(fenerKabloGeo, fenerKabloMat);
+    kablo.position.y = -0.22;
+    fPivot.add(kablo);
+
+    const sapka = new THREE.Mesh(fenerSapkaGeo, fenerPirincMat);
+    sapka.position.y = -0.45;
+    fPivot.add(sapka);
+
+    const camMat = new THREE.MeshStandardMaterial({
+      color: '#ffdf9e', emissive: '#ff8c24', emissiveIntensity: 1.5, roughness: 0.2
+    });
+    const fGovde = new THREE.Mesh(fenerGovdeGeo, camMat);
+    fGovde.position.y = -0.60;
+    fPivot.add(fGovde);
+
+    const fIsik = new THREE.PointLight('#ff9d3b', 0.9, 5.5);
+    fIsik.position.y = -0.60;
+    fPivot.add(fIsik);
+
+    scene.add(fPivot);
+    fenerler.push({ pivot: fPivot, faz: idx * 1.9, isik: fIsik });
+  });
+
+  // Tıklanabilir nesneler listesi ve bellek sızıntısı önleyici temizleyici
+  const tiklanabilirler = [];
+  function etkilesimAta(grup, tur, veri = {}) {
+    grup.userData.etkilesim = { tur, ...veri, kokGrup: grup };
+    grup.traverse(child => {
+      if (child.isMesh) {
+        child.userData.etkilesim = grup.userData.etkilesim;
+        tiklanabilirler.push(child);
+      }
+    });
+  }
+
+  function etkilesimTemizle(grup) {
+    if (!grup) return;
+    const silinecekler = new Set();
+    grup.traverse(child => {
+      if (child.isMesh) silinecekler.add(child);
+    });
+    for (let i = tiklanabilirler.length - 1; i >= 0; i--) {
+      if (silinecekler.has(tiklanabilirler[i])) {
+        tiklanabilirler.splice(i, 1);
+      }
+    }
+  }
+
+  // --- 1. LEGEN (Soldan 1. nesne: x = -2.35) ---
+  const legenGrup = new THREE.Group();
+  legenGrup.position.set(-2.35, TEZGAH_Y, 0.56);
+  const legenPts = [
+    new THREE.Vector2(0, 0.01),
+    new THREE.Vector2(0.33, 0.01),
+    new THREE.Vector2(0.41, 0.22),
+    new THREE.Vector2(0.44, 0.24),
+    new THREE.Vector2(0.38, 0.24),
+    new THREE.Vector2(0.30, 0.04),
+    new THREE.Vector2(0, 0.04)
+  ];
+  const legenMesh = new THREE.Mesh(
+    new THREE.LatheGeometry(legenPts, 28),
+    new THREE.MeshStandardMaterial({ color: '#8c99a6', metalness: 0.65, roughness: 0.32, side: THREE.DoubleSide })
+  );
+  legenMesh.castShadow = true;
+  legenMesh.receiveShadow = true;
+  legenGrup.add(legenMesh);
+
+  const legenSuMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.34, 0.31, 0.02, 24),
+    new THREE.MeshStandardMaterial({ color: '#7ab8cc', transparent: true, opacity: 0.72, roughness: 0.2 })
+  );
+  legenSuMesh.position.y = 0.12;
+  legenGrup.add(legenSuMesh);
+
+  // Yıkama köpük baloncukları
+  const kopukler = [];
+  const kopukGeo = new THREE.SphereGeometry(0.032, 10, 10);
+  for (let i = 0; i < 12; i++) {
+    const kMat = new THREE.MeshBasicMaterial({ color: '#e6fbff', transparent: true, opacity: 0.75 });
+    const kMesh = new THREE.Mesh(kopukGeo, kMat);
+    kMesh.visible = false;
+    legenGrup.add(kMesh);
+    kopukler.push({
+      mesh: kMesh,
+      faz: i / 12,
+      aci: (i * 2.399),
+      yaricap: 0.08 + (i % 3) * 0.08
+    });
+  }
+
+  scene.add(legenGrup);
+  etkilesimAta(legenGrup, 'legen');
+
+  // --- 2. SEMAVER (Soldan 2. nesne: x = -1.48, kendi pirinç materyaliyle) ---
+  const semaverGrup = new THREE.Group();
+  semaverGrup.position.set(-1.48, TEZGAH_Y, 0.46);
+  const semaverPts = [
+    new THREE.Vector2(0.0, 0.0),
+    new THREE.Vector2(0.24, 0.0),
+    new THREE.Vector2(0.20, 0.07),
+    new THREE.Vector2(0.16, 0.14),
+    new THREE.Vector2(0.28, 0.26),
+    new THREE.Vector2(0.30, 0.52),
+    new THREE.Vector2(0.25, 0.68),
+    new THREE.Vector2(0.18, 0.74),
+    new THREE.Vector2(0.22, 0.78),
+    new THREE.Vector2(0.09, 0.82),
+    new THREE.Vector2(0.09, 0.96),
+    new THREE.Vector2(0.0, 0.96)
+  ];
+  const bakirMat = new THREE.MeshStandardMaterial({ color: '#c87d44', metalness: 0.78, roughness: 0.24 });
+  const semaverPirincMat = new THREE.MeshStandardMaterial({ color: '#e3b448', metalness: 0.82, roughness: 0.22 });
+
+  const semaverGovde = new THREE.Mesh(new THREE.LatheGeometry(semaverPts, 32), bakirMat);
+  semaverGovde.castShadow = true;
+  semaverGovde.receiveShadow = true;
+  semaverGrup.add(semaverGovde);
+
+  // Semaver alt köz parıltısı (ateş deliği)
+  const kozMat = new THREE.MeshBasicMaterial({ color: '#ff521b' });
+  const kozMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.06, 16), kozMat);
+  kozMesh.position.y = 0.06;
+  semaverGrup.add(kozMesh);
+  const kozIsik = new THREE.PointLight('#ff5a1f', 0.65, 1.8);
+  kozIsik.position.set(0, 0.10, 0.26);
+  semaverGrup.add(kozIsik);
+
+  const kapakTopuz = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), semaverPirincMat);
+  kapakTopuz.position.set(0, 0.98, 0);
+  semaverGrup.add(kapakTopuz);
+
+  const muslukBoru = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.14, 12), semaverPirincMat);
+  muslukBoru.rotation.x = Math.PI / 2;
+  muslukBoru.position.set(0, 0.28, 0.30);
+  semaverGrup.add(muslukBoru);
+
+  const muslukUcu = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.07, 12), semaverPirincMat);
+  muslukUcu.position.set(0, 0.25, 0.35);
+  semaverGrup.add(muslukUcu);
+
+  const muslukKolu = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.016, 0.025), semaverPirincMat);
+  muslukKolu.position.set(0, 0.32, 0.32);
+  semaverGrup.add(muslukKolu);
+
+  [-1, 1].forEach(yon => {
+    const kulp = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 10, 20, Math.PI), semaverPirincMat);
+    kulp.position.set(yon * 0.27, 0.50, 0);
+    kulp.rotation.z = yon * (-Math.PI / 2);
+    semaverGrup.add(kulp);
+  });
+
+  scene.add(semaverGrup);
+  etkilesimAta(semaverGrup, 'semaver');
+
+  // --- 3. İKİ KATLI DEMLİK (Soldan 3. nesne: x = -0.66) ---
+  const demlikGrup = new THREE.Group();
+  demlikGrup.position.set(-0.66, TEZGAH_Y, 0.46);
+
+  const altDemlikPts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.20, 0),
+    new THREE.Vector2(0.25, 0.14),
+    new THREE.Vector2(0.22, 0.30),
+    new THREE.Vector2(0.15, 0.36),
+    new THREE.Vector2(0, 0.36)
+  ];
+  const altDemlikMat = new THREE.MeshStandardMaterial({ color: '#d4dbe0', metalness: 0.78, roughness: 0.22 });
+  const ustDemlikMat = new THREE.MeshStandardMaterial({ color: '#c83e2b', metalness: 0.45, roughness: 0.28 });
+
+  const altDemlik = new THREE.Mesh(new THREE.LatheGeometry(altDemlikPts, 28), altDemlikMat);
+  altDemlik.castShadow = true;
+  demlikGrup.add(altDemlik);
+
+  // Üst demlik grubu (kendi taban ekseni y=0.35 etrafında doğal eğilir)
+  const ustDemlikGrup = new THREE.Group();
+  ustDemlikGrup.position.set(0, 0.35, 0);
+  const ustDemlikPts = [
+    new THREE.Vector2(0, 0.00),
+    new THREE.Vector2(0.14, 0.00),
+    new THREE.Vector2(0.18, 0.11),
+    new THREE.Vector2(0.14, 0.23),
+    new THREE.Vector2(0.09, 0.27),
+    new THREE.Vector2(0.03, 0.31),
+    new THREE.Vector2(0, 0.31)
+  ];
+  const ustDemlik = new THREE.Mesh(new THREE.LatheGeometry(ustDemlikPts, 28), ustDemlikMat);
+  ustDemlik.castShadow = true;
+  ustDemlikGrup.add(ustDemlik);
+
+  const emzik = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.028, 0.20, 12), ustDemlikMat);
+  emzik.position.set(0.17, 0.15, 0);
+  emzik.rotation.z = -0.65;
+  ustDemlikGrup.add(emzik);
+
+  const demlikSap = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.015, 10, 20, Math.PI),
+    new THREE.MeshStandardMaterial({ color: '#24140b', roughness: 0.7 }));
+  demlikSap.position.set(-0.15, 0.13, 0);
+  demlikSap.rotation.z = Math.PI / 2;
+  ustDemlikGrup.add(demlikSap);
+  demlikGrup.add(ustDemlikGrup);
+
+  const halkaGrup = new THREE.Group();
+  halkaGrup.position.set(0, 0.80, 0);
+  const halkaArka = new THREE.Mesh(
+    new THREE.TorusGeometry(0.14, 0.018, 12, 32),
+    new THREE.MeshBasicMaterial({ color: '#3b2313' })
+  );
+  const halkaIlerleme = new THREE.Mesh(
+    new THREE.TorusGeometry(0.14, 0.024, 12, 24, Math.PI * 1.35),
+    new THREE.MeshBasicMaterial({ color: '#ffbe42' })
+  );
+  halkaGrup.add(halkaArka);
+  halkaGrup.add(halkaIlerleme);
+  halkaGrup.visible = false;
+  demlikGrup.add(halkaGrup);
+
+  // Demlik üstü durum etiketi (Yalnızca değiştiğinde çizilir!)
+  const etiketCanvas = document.createElement('canvas');
+  etiketCanvas.width = 256; etiketCanvas.height = 80;
+  const etiketCtx = etiketCanvas.getContext('2d');
+  const etiketTex = new THREE.CanvasTexture(etiketCanvas);
+  const etiketSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: etiketTex, transparent: true }));
+  etiketSprite.position.set(0, 0.88, 0.12);
+  etiketSprite.scale.set(0.64, 0.20, 1);
+  demlikGrup.add(etiketSprite);
+
+  let sonEtiketAnahtari = '';
+  function demlikEtiketiGuncelle(metin, durumKodu) {
+    const anahtar = `${durumKodu}|${metin}`;
+    if (anahtar === sonEtiketAnahtari) return;
+    sonEtiketAnahtari = anahtar;
+
+    etiketCtx.clearRect(0, 0, 256, 80);
+    etiketCtx.fillStyle = durumKodu === 'BAYAT' ? 'rgba(92, 42, 22, 0.92)'
+      : durumKodu === 'BITTI' ? 'rgba(130, 25, 20, 0.92)'
+      : 'rgba(38, 20, 9, 0.90)';
+    etiketCtx.strokeStyle = '#e8a856';
+    etiketCtx.lineWidth = 5;
+    etiketCtx.beginPath();
+    etiketCtx.roundRect(6, 6, 244, 68, 14);
+    etiketCtx.fill();
+    etiketCtx.stroke();
+    etiketCtx.fillStyle = '#fff3de';
+    etiketCtx.font = 'bold 34px Segoe UI, sans-serif';
+    etiketCtx.textAlign = 'center';
+    etiketCtx.textBaseline = 'middle';
+    etiketCtx.fillText(metin, 128, 41);
+    etiketTex.needsUpdate = true;
+  }
+
+  scene.add(demlikGrup);
+  etkilesimAta(demlikGrup, 'demlik');
+
+  // --- BUHAR PARÇACIKLARI ---
+  const buharParcaciklari = [];
+  const buharGeo = new THREE.SphereGeometry(0.045, 10, 10);
+  for (let i = 0; i < 14; i++) {
+    const pMat = new THREE.MeshBasicMaterial({ color: '#fff6eb', transparent: true, opacity: 0.35, depthWrite: false });
+    const pMesh = new THREE.Mesh(buharGeo, pMat);
+    scene.add(pMesh);
+    buharParcaciklari.push({
+      mesh: pMesh,
+      faz: i / 14,
+      kaymaX: (Math.sin(i * 2.1) * 0.04),
+      kaymaZ: (Math.cos(i * 1.7) * 0.04)
+    });
+  }
+
+  // --- DÖKÜLEN SIVI HÜZMESİ (Çay / Su akışı efekti) ---
+  const dokmeHuzmesiMat = new THREE.MeshBasicMaterial({ color: '#5c1406', transparent: true, opacity: 0.85 });
+  const dokmeHuzmesi = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.008, 0.36, 8), dokmeHuzmesiMat);
+  dokmeHuzmesi.visible = false;
+  scene.add(dokmeHuzmesi);
+
+  // --- 4. ŞEKERLİK (x = -0.02) ---
+  const sekerlikGrup = new THREE.Group();
+  sekerlikGrup.position.set(-0.02, TEZGAH_Y, 0.54);
+  const kasePts = [
+    new THREE.Vector2(0, 0.01),
+    new THREE.Vector2(0.13, 0.01),
+    new THREE.Vector2(0.18, 0.13),
+    new THREE.Vector2(0.15, 0.13),
+    new THREE.Vector2(0.11, 0.03),
+    new THREE.Vector2(0, 0.03)
+  ];
+  const kaseMesh = new THREE.Mesh(
+    new THREE.LatheGeometry(kasePts, 24),
+    new THREE.MeshStandardMaterial({ color: '#d9a441', metalness: 0.72, roughness: 0.26, side: THREE.DoubleSide })
+  );
+  kaseMesh.castShadow = true;
+  sekerlikGrup.add(kaseMesh);
+
+  const kupSekerGeo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+  const kupSekerMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.4 });
+  [
+    [0, 0.06, 0], [-0.045, 0.06, 0.028], [0.045, 0.06, 0.02],
+    [-0.03, 0.06, -0.045], [0.038, 0.06, -0.038],
+    [0, 0.095, 0.01], [-0.035, 0.095, -0.018], [0.035, 0.095, 0.018],
+    [0.01, 0.115, -0.01]
+  ].forEach(([sx, sy, sz], idx) => {
+    const kup = new THREE.Mesh(kupSekerGeo, kupSekerMat);
+    kup.position.set(sx, sy, sz);
+    kup.rotation.set(idx * 0.2, idx * 0.5, idx * 0.15);
+    sekerlikGrup.add(kup);
+  });
+
+  scene.add(sekerlikGrup);
+  etkilesimAta(sekerlikGrup, 'sekerlik');
+
+  // --- 5. LİMONLUK (x = 0.46, taze sarı limon dilimli porselen tabak) ---
+  const limonlukGrup = new THREE.Group();
+  limonlukGrup.position.set(0.46, TEZGAH_Y, 0.56);
+  const limonKase = new THREE.Mesh(
+    new THREE.LatheGeometry(kasePts, 24),
+    new THREE.MeshStandardMaterial({ color: '#2b6a6c', metalness: 0.22, roughness: 0.32, side: THREE.DoubleSide })
+  );
+  limonKase.castShadow = true;
+  limonlukGrup.add(limonKase);
+
+  const limonDilimGeo = new THREE.CylinderGeometry(0.062, 0.062, 0.018, 16, 1, false, 0, Math.PI);
+  const limonDilimMat = new THREE.MeshStandardMaterial({ color: '#f7d126', roughness: 0.45 });
+  const limonKabukMat = new THREE.MeshStandardMaterial({ color: '#d4a106', roughness: 0.55 });
+  [
+    [-0.03, 0.065, 0.01, 0.3, 0.2, 0.4],
+    [0.03, 0.072, -0.02, -0.2, 1.4, -0.3],
+    [0.0, 0.095, 0.02, 0.5, 2.3, 0.2],
+    [-0.02, 0.11, -0.02, 0.2, 0.8, -0.5]
+  ].forEach(([lx, ly, lz, rx, ry, rz]) => {
+    const dilim = new THREE.Mesh(limonDilimGeo, limonDilimMat);
+    dilim.position.set(lx, ly, lz);
+    dilim.rotation.set(rx, ry, rz);
+    limonlukGrup.add(dilim);
+  });
+
+  scene.add(limonlukGrup);
+  etkilesimAta(limonlukGrup, 'limonluk');
+
+  // --- 6. HAZIRLIK SIRASI (4 bardak yeri: x = 0.92 .. 1.82) ---
+  const hazirlikNoktalari = [];
+  const altlikGeo = new THREE.CylinderGeometry(0.105, 0.115, 0.016, 20);
+  const altlikMat = new THREE.MeshStandardMaterial({ color: '#4a2811', roughness: 0.8 });
+  for (let i = 0; i < 4; i++) {
+    const hx = 0.92 + i * 0.30;
+    const hz = 0.62;
+    const altlik = new THREE.Mesh(altlikGeo, altlikMat);
+    altlik.position.set(hx, TEZGAH_Y + 0.008, hz);
+    altlik.receiveShadow = true;
+    scene.add(altlik);
+    hazirlikNoktalari.push(new THREE.Vector3(hx, TEZGAH_Y + 0.016, hz));
+  }
+
+  // --- 7. ASKILI ÇAY TEPSİSİ (En sağda: x = 2.48, kendi pirinç materyali, 6 bardaklık yuva) ---
+  const TEPSI_BASE_POS = new THREE.Vector3(2.48, TEZGAH_Y, 0.55);
+  const tepsiGrup = new THREE.Group();
+  tepsiGrup.position.copy(TEPSI_BASE_POS);
+
+  const tepsiTaban = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.45, 0.42, 0.025, 32),
+    new THREE.MeshStandardMaterial({ color: '#d4dce3', metalness: 0.82, roughness: 0.20 })
+  );
+  tepsiTaban.position.y = 0.015;
+  tepsiTaban.castShadow = true;
+  tepsiTaban.receiveShadow = true;
+  tepsiGrup.add(tepsiTaban);
+
+  const askiMat = new THREE.MeshStandardMaterial({ color: '#c4cdd4', metalness: 0.85, roughness: 0.2 });
+  const tepsiPirincMat = new THREE.MeshStandardMaterial({ color: '#e3b448', metalness: 0.82, roughness: 0.22 });
+  for (let k = 0; k < 3; k++) {
+    const aci = (k * Math.PI * 2) / 3 + 0.3;
+    const egri = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(Math.cos(aci) * 0.42, 0.02, Math.sin(aci) * 0.42),
+      new THREE.Vector3(Math.cos(aci) * 0.36, 0.36, Math.sin(aci) * 0.36),
+      new THREE.Vector3(0, 0.58, 0)
+    );
+    const kolMesh = new THREE.Mesh(new THREE.TubeGeometry(egri, 16, 0.012, 8, false), askiMat);
+    kolMesh.castShadow = true;
+    tepsiGrup.add(kolMesh);
+  }
+  const tepsiHalka = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.014, 10, 20), tepsiPirincMat);
+  tepsiHalka.position.set(0, 0.62, 0);
+  tepsiHalka.rotation.y = Math.PI / 4;
+  tepsiGrup.add(tepsiHalka);
+
+  scene.add(tepsiGrup);
+  etkilesimAta(tepsiGrup, 'tepsi');
+
+  // Tepsi üzerindeki 6 bardak noktası (ilk 4'ü kare, 5-6 yükseltme ile eklenir)
+  const tepsiNoktalariYerel = [
+    new THREE.Vector3(-0.17, 0.028, -0.15),
+    new THREE.Vector3( 0.17, 0.028, -0.15),
+    new THREE.Vector3(-0.17, 0.028,  0.15),
+    new THREE.Vector3( 0.17, 0.028,  0.15),
+    new THREE.Vector3( 0.00, 0.028, -0.24),
+    new THREE.Vector3( 0.00, 0.028,  0.24)
+  ];
+
+  // --- YAN DUVAR VE RAF (Üstünde 10'a kadar ince belli bardak) ---
+  const yanDuvar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 2.75, 2.3),
+    new THREE.MeshStandardMaterial({ color: '#452a16', roughness: 0.88 })
+  );
+  yanDuvar.position.set(-3.16, 1.375, 0.45);
+  yanDuvar.receiveShadow = true;
+  scene.add(yanDuvar);
+
+  const rafUst = new THREE.Mesh(
+    new THREE.BoxGeometry(0.45, 0.05, 1.82),
+    new THREE.MeshStandardMaterial({ map: ahsapTex, roughness: 0.65 })
+  );
+  rafUst.position.set(-2.86, 2.02, 0.48);
+  rafUst.castShadow = true;
+  rafUst.receiveShadow = true;
+  scene.add(rafUst);
+
+  const rafAlt = new THREE.Mesh(
+    new THREE.BoxGeometry(0.45, 0.05, 1.82),
+    new THREE.MeshStandardMaterial({ map: ahsapTex, roughness: 0.65 })
+  );
+  rafAlt.position.set(-2.86, 1.58, 0.48);
+  rafAlt.castShadow = true;
+  rafAlt.receiveShadow = true;
+  scene.add(rafAlt);
+
+  // Raftaki 10 bardağın dizilim koordinatları (5 üst + 5 alt)
+  const rafNoktalari = [];
+  for (let i = 0; i < 10; i++) {
+    const ustKatMi = i < 5;
+    const sira = i % 5;
+    const ry = ustKatMi ? 2.045 : 1.605;
+    const rz = -0.20 + sira * 0.34;
+    const rx = -2.79;
+    rafNoktalari.push(new THREE.Vector3(rx, ry, rz));
+  }
+
+  // Legen içindeki kirli bardak noktaları
+  const legenNoktalari = [];
+  for (let i = 0; i < 10; i++) {
+    const aci = (i / 10) * Math.PI * 2;
+    const r = (i % 2 === 0) ? 0.13 : 0.21;
+    legenNoktalari.push(new THREE.Vector3(
+      -2.35 + Math.cos(aci) * r,
+      TEZGAH_Y + 0.06,
+      0.56 + Math.sin(aci) * r
+    ));
+  }
+
+  // --- 10 İNCE BELLİ CAM BARDAK, TABAK, KAŞIK VE LİMON DİLİMİ ---
+  const inceBelliPts = [
+    new THREE.Vector2(0.00, 0.00),
+    new THREE.Vector2(0.055, 0.00),
+    new THREE.Vector2(0.068, 0.045),
+    new THREE.Vector2(0.040, 0.105),
+    new THREE.Vector2(0.064, 0.180),
+    new THREE.Vector2(0.068, 0.200)
+  ];
+  const bardakGeo = new THREE.LatheGeometry(inceBelliPts, 24);
+
+  const siviPts = [
+    new THREE.Vector2(0.00, 0.008),
+    new THREE.Vector2(0.050, 0.008),
+    new THREE.Vector2(0.062, 0.045),
+    new THREE.Vector2(0.036, 0.105),
+    new THREE.Vector2(0.058, 0.168),
+    new THREE.Vector2(0.00, 0.168)
+  ];
+  const siviGeo = new THREE.LatheGeometry(siviPts, 20);
+
+  const tabakPts = [
+    new THREE.Vector2(0.00, 0.00),
+    new THREE.Vector2(0.065, 0.00),
+    new THREE.Vector2(0.115, 0.022),
+    new THREE.Vector2(0.105, 0.026),
+    new THREE.Vector2(0.055, 0.006),
+    new THREE.Vector2(0.00, 0.006)
+  ];
+  const tabakGeo = new THREE.LatheGeometry(tabakPts, 24);
+  const kasikSapGeo = new THREE.BoxGeometry(0.010, 0.004, 0.105);
+  const kasikUcuGeo = new THREE.SphereGeometry(0.014, 10, 8);
+  const kirliIzGeo = new THREE.CylinderGeometry(0.048, 0.048, 0.022, 16);
+  const bardakSekerGeo = new THREE.BoxGeometry(0.034, 0.034, 0.034);
+  const secimHalkaGeo = new THREE.RingGeometry(0.115, 0.145, 24);
+  const kucukBuharGeo = new THREE.SphereGeometry(0.024, 8, 8);
+
+  const bardakNesneleri = [];
+  for (let i = 0; i < 10; i++) {
+    const bGrup = new THREE.Group();
+
+    const tabakMat = new THREE.MeshStandardMaterial({ color: '#e63b2e', roughness: 0.3, metalness: 0.1 });
+    const tabakMesh = new THREE.Mesh(tabakGeo, tabakMat);
+    tabakMesh.castShadow = true;
+    bGrup.add(tabakMesh);
+
+    const camMat = new THREE.MeshPhysicalMaterial({
+      color: '#ffffff',
+      transparent: true,
+      opacity: 0.34,
+      roughness: 0.08,
+      metalness: 0.05,
+      transmission: 0.65,
+      side: THREE.DoubleSide
+    });
+    const camMesh = new THREE.Mesh(bardakGeo, camMat);
+    camMesh.position.y = 0.006;
+    camMesh.castShadow = true;
+    bGrup.add(camMesh);
+
+    const siviMat = new THREE.MeshStandardMaterial({
+      color: AYARLAR.RENKLER.KOYU_CAY,
+      roughness: 0.22,
+      metalness: 0.05
+    });
+    const siviMesh = new THREE.Mesh(siviGeo, siviMat);
+    siviMesh.position.y = 0.006;
+    siviMesh.visible = false;
+    bGrup.add(siviMesh);
+
+    const kirliIzMesh = new THREE.Mesh(
+      kirliIzGeo,
+      new THREE.MeshStandardMaterial({ color: AYARLAR.RENKLER.KIRLI_IZ, roughness: 0.9 })
+    );
+    kirliIzMesh.position.y = 0.018;
+    kirliIzMesh.visible = false;
+    bGrup.add(kirliIzMesh);
+
+    // Tabaktaki küp şeker + çay kaşığı
+    const sekerGrup = new THREE.Group();
+    const sekerMesh = new THREE.Mesh(bardakSekerGeo, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.35 }));
+    sekerMesh.position.set(0.074, 0.024, 0.022);
+    sekerMesh.rotation.y = 0.35;
+    sekerGrup.add(sekerMesh);
+
+    const kasikMat = new THREE.MeshStandardMaterial({ color: '#e4ecf2', metalness: 0.9, roughness: 0.15 });
+    const kasikSap = new THREE.Mesh(kasikSapGeo, kasikMat);
+    kasikSap.position.set(-0.072, 0.022, 0.0);
+    kasikSap.rotation.y = 0.2;
+    sekerGrup.add(kasikSap);
+    const kasikUcu = new THREE.Mesh(kasikUcuGeo, kasikMat);
+    kasikUcu.scale.set(0.8, 0.3, 1.3);
+    kasikUcu.position.set(-0.082, 0.022, 0.05);
+    sekerGrup.add(kasikUcu);
+    sekerGrup.visible = false;
+    bGrup.add(sekerGrup);
+
+    // Bardak kenarındaki taze limon dilimi
+    const limonMesh = new THREE.Mesh(limonDilimGeo, limonKabukMat);
+    limonMesh.scale.set(0.75, 0.85, 0.75);
+    limonMesh.position.set(0.052, 0.185, 0);
+    limonMesh.rotation.set(0.4, 0.2, -0.55);
+    limonMesh.visible = false;
+    bGrup.add(limonMesh);
+
+    // Sıcak bardak buharı (küçük puf)
+    const bardakBuharMat = new THREE.MeshBasicMaterial({ color: '#fff8ee', transparent: true, opacity: 0.28, depthWrite: false });
+    const bardakBuhar = new THREE.Mesh(kucukBuharGeo, bardakBuharMat);
+    bardakBuhar.position.set(0, 0.25, 0);
+    bardakBuhar.visible = false;
+    bGrup.add(bardakBuhar);
+
+    const secimHalka = new THREE.Mesh(
+      secimHalkaGeo,
+      new THREE.MeshBasicMaterial({ color: '#ffe169', side: THREE.DoubleSide })
+    );
+    secimHalka.rotation.x = -Math.PI / 2;
+    secimHalka.position.y = 0.004;
+    secimHalka.visible = false;
+    bGrup.add(secimHalka);
+
+    bGrup.position.copy(rafNoktalari[i]);
+    bGrup.visible = i < AYARLAR.TOPLAM_BARDAK;
+    scene.add(bGrup);
+    etkilesimAta(bGrup, 'bardak_sec', { bardakId: i });
+
+    bardakNesneleri.push({
+      id: i,
+      grup: bGrup,
+      camMat,
+      siviMesh,
+      siviMat,
+      kirliIzMesh,
+      sekerMesh: sekerGrup,
+      limonMesh,
+      bardakBuhar,
+      secimHalka,
+      tabakMat
+    });
+  }
+
+  // --- KARŞI SOKAKTA İKİ DÜKKÂN CEPHESİ VE ÇARŞI DETAYLARI ---
+  function dukkanOlustur(xKonum, cepheRenk, tenteRenk, tabelaYazi, tabelaArka, tabelaYaziRenk, tip) {
+    const g = new THREE.Group();
+    g.position.set(xKonum, 0, -4.7);
+
+    const bina = new THREE.Mesh(
+      new THREE.BoxGeometry(3.9, 3.9, 1.2),
+      new THREE.MeshStandardMaterial({ color: cepheRenk, roughness: 0.85 })
+    );
+    bina.position.y = 1.95;
+    bina.castShadow = true;
+    bina.receiveShadow = true;
+    g.add(bina);
+
+    const kapi = new THREE.Mesh(
+      new THREE.BoxGeometry(0.85, 1.85, 0.08),
+      new THREE.MeshStandardMaterial({ color: '#4a2610', roughness: 0.75 })
+    );
+    kapi.position.set(-0.95, 0.925, 0.62);
+    g.add(kapi);
+
+    const vitrinCerceve = new THREE.Mesh(
+      new THREE.BoxGeometry(1.55, 1.35, 0.08),
+      new THREE.MeshStandardMaterial({ color: '#3b1e0c', roughness: 0.7 })
+    );
+    vitrinCerceve.position.set(0.65, 1.25, 0.62);
+    g.add(vitrinCerceve);
+
+    const vitrinCam = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.38, 1.18),
+      new THREE.MeshStandardMaterial({ color: '#ffca7a', emissive: '#a85818', emissiveIntensity: 0.58, roughness: 0.2 })
+    );
+    vitrinCam.position.set(0.65, 1.25, 0.67);
+    g.add(vitrinCam);
+
+    const tente = new THREE.Mesh(
+      new THREE.BoxGeometry(3.6, 0.14, 0.9),
+      new THREE.MeshStandardMaterial({ color: tenteRenk, roughness: 0.7 })
+    );
+    tente.position.set(0, 2.28, 0.95);
+    tente.rotation.x = 0.28;
+    tente.castShadow = true;
+    g.add(tente);
+
+    const tabelaTex = tabelaDokuUret(tabelaYazi, tabelaArka, '#e0a952', tabelaYaziRenk);
+    const tabela = new THREE.Mesh(
+      new THREE.BoxGeometry(2.3, 0.68, 0.10),
+      new THREE.MeshStandardMaterial({ map: tabelaTex, roughness: 0.45 })
+    );
+    tabela.position.set(0, 2.98, 0.65);
+    g.add(tabela);
+
+    // Sokak önü dekoratif esnaf detayları
+    if (tip === 'bakirci') {
+      const kazanMat = new THREE.MeshStandardMaterial({ color: '#c47238', metalness: 0.8, roughness: 0.25 });
+      [0.95, 1.42].forEach((kx, idx) => {
+        const kazan = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.16, 0.28 + idx * 0.08, 16), kazanMat);
+        kazan.position.set(kx, 0.15 + idx * 0.04, 0.92);
+        kazan.castShadow = true;
+        g.add(kazan);
+      });
+    } else {
+      // Kumaşçı önünde renkli kumaş ruloları
+      ['#b8293d', '#24668a', '#d99829'].forEach((renk, idx) => {
+        const rulo = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.11, 0.11, 0.75, 14),
+          new THREE.MeshStandardMaterial({ color: renk, roughness: 0.8 })
+        );
+        rulo.position.set(0.85 + idx * 0.25, 0.38, 0.92);
+        rulo.rotation.z = 0.08 * (idx - 1);
+        rulo.castShadow = true;
+        g.add(rulo);
+      });
+    }
+
+    scene.add(g);
+  }
+
+  dukkanOlustur(-2.3, '#8c583a', '#9e2b22', 'BAKIRCI', '#2b1508', '#ffcf70', 'bakirci');
+  dukkanOlustur(2.3,  '#3d5a6c', '#296b47', 'KUMAŞÇI', '#172b38', '#ffe3a3', 'kumasci');
+
+  // Çarşı sokak tabureleri ve alçak çay masası (ortada dükkanların önünde)
+  const tabureMat = new THREE.MeshStandardMaterial({ color: '#5c3317', roughness: 0.78 });
+  const masaUst = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.06, 0.75), tabureMat);
+  masaUst.position.set(0, 0.52, -3.1);
+  masaUst.castShadow = true;
+  scene.add(masaUst);
+  const masaAyak = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.10, 0.50, 10), tabureMat);
+  masaAyak.position.set(0, 0.25, -3.1);
+  scene.add(masaAyak);
+  [-0.65, 0.65].forEach(tx => {
+    const tabure = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.18, 0.34, 12), tabureMat);
+    tabure.position.set(tx, 0.17, -3.1);
+    tabure.castShadow = true;
+    scene.add(tabure);
+  });
+
+  // --- MÜŞTERİ BEKLEME NOKTALARI (3 nokta) ---
+  const musteriSlotKonumlari = [
+    new THREE.Vector3(-1.65, 0, -1.25),
+    new THREE.Vector3( 0.00, 0, -1.25),
+    new THREE.Vector3( 1.65, 0, -1.25)
+  ];
+
+  musteriSlotKonumlari.forEach(konum => {
+    const iz = new THREE.Mesh(
+      new THREE.RingGeometry(0.32, 0.38, 24),
+      new THREE.MeshBasicMaterial({ color: '#8f6b47', transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+    );
+    iz.rotation.x = -Math.PI / 2;
+    iz.position.set(konum.x, 0.01, konum.z);
+    scene.add(iz);
+  });
+
+  // Paylaşılan müşteri geometrileri (bellek dostu!)
+  const mGeo = {
+    govde: new THREE.CapsuleGeometry(0.26, 0.68, 12, 20),
+    bas: new THREE.SphereGeometry(0.21, 20, 20),
+    goz: new THREE.SphereGeometry(0.022, 8, 8),
+    biyik: new THREE.BoxGeometry(0.16, 0.032, 0.04),
+    fes: new THREE.CylinderGeometry(0.14, 0.17, 0.18, 20),
+    puskul: new THREE.CylinderGeometry(0.012, 0.018, 0.14, 8),
+    kasket: new THREE.SphereGeometry(0.20, 16, 12),
+    gozlukHalka: new THREE.TorusGeometry(0.045, 0.008, 8, 16),
+    vipSert: new THREE.CylinderGeometry(0.15, 0.175, 0.035, 20)
+  };
+  const mOrtakMat = {
+    ten: new THREE.MeshStandardMaterial({ color: '#e6b891', roughness: 0.55 }),
+    koyu: new THREE.MeshStandardMaterial({ color: '#22140c' }),
+    fes: new THREE.MeshStandardMaterial({ color: '#9e1b1b', roughness: 0.6 }),
+    kasket: new THREE.MeshStandardMaterial({ color: '#4a3c31', roughness: 0.75 }),
+    aceleciKasket: new THREE.MeshStandardMaterial({ color: '#14695b', roughness: 0.55 }),
+    altin: new THREE.MeshStandardMaterial({ color: '#ffd152', metalness: 0.85, roughness: 0.2 })
+  };
+
+  function musteriFiguruOlustur(mVeri) {
+    const mGrup = new THREE.Group();
+
+    const govdeMat = new THREE.MeshStandardMaterial({ color: mVeri.ceketRengi || '#3b5978', roughness: 0.65 });
+    const govde = new THREE.Mesh(mGeo.govde, govdeMat);
+    govde.position.y = 0.72;
+    govde.castShadow = true;
+    govde.receiveShadow = true;
+    mGrup.add(govde);
+
+    const bas = new THREE.Mesh(mGeo.bas, mOrtakMat.ten.clone());
+    bas.position.y = 1.45;
+    bas.castShadow = true;
+    mGrup.add(bas);
+
+    // Gözler
+    [-0.068, 0.068].forEach(gx => {
+      const goz = new THREE.Mesh(mGeo.goz, mOrtakMat.koyu);
+      goz.position.set(gx, 1.48, 0.185);
+      mGrup.add(goz);
+    });
+
+    // Bıyık
+    const biyik = new THREE.Mesh(mGeo.biyik, mOrtakMat.koyu);
+    biyik.position.set(0, 1.39, 0.195);
+    mGrup.add(biyik);
+
+    // Şapka ve özel müşteri aksesuarları
+    if (mVeri.sapkaTipi === 'vip_fes') {
+      const fes = new THREE.Mesh(mGeo.fes, mOrtakMat.fes.clone());
+      fes.position.set(0, 1.66, 0);
+      mGrup.add(fes);
+      const serit = new THREE.Mesh(mGeo.vipSert, mOrtakMat.altin.clone());
+      serit.position.set(0, 1.59, 0);
+      mGrup.add(serit);
+      const puskul = new THREE.Mesh(mGeo.puskul, mOrtakMat.altin.clone());
+      puskul.position.set(0.16, 1.63, 0);
+      puskul.rotation.z = -0.25;
+      mGrup.add(puskul);
+      // Altın gözlük
+      [-0.068, 0.068].forEach(gx => {
+        const cam = new THREE.Mesh(mGeo.gozlukHalka, mOrtakMat.altin.clone());
+        cam.position.set(gx, 1.48, 0.205);
+        mGrup.add(cam);
+      });
+    } else if (mVeri.sapkaTipi === 'fes') {
+      const fes = new THREE.Mesh(mGeo.fes, mOrtakMat.fes.clone());
+      fes.position.set(0, 1.66, 0);
+      mGrup.add(fes);
+      const puskul = new THREE.Mesh(mGeo.puskul, mOrtakMat.koyu);
+      puskul.position.set(0.15, 1.63, 0);
+      puskul.rotation.z = -0.25;
+      mGrup.add(puskul);
+    } else {
+      const kMat = (mVeri.tip === 'ACELECI' ? mOrtakMat.aceleciKasket : mOrtakMat.kasket).clone();
+      const kasket = new THREE.Mesh(mGeo.kasket, kMat);
+      kasket.scale.set(1.05, 0.45, 1.25);
+      kasket.position.set(0, 1.61, 0.04);
+      mGrup.add(kasket);
+    }
+
+    etkilesimAta(mGrup, 'musteri', { musteriId: mVeri.id, slot: mVeri.slot });
+    scene.add(mGrup);
+    return mGrup;
+  }
+
+  function musteriFiguruSil(mGrup) {
+    if (!mGrup) return;
+    etkilesimTemizle(mGrup);
+    scene.remove(mGrup);
+    mGrup.traverse(child => {
+      if (child.isMesh && child.material && child.material !== mOrtakMat.koyu) {
+        child.material.dispose();
+      }
+    });
+  }
+
+  return {
+    scene,
+    camera,
+    renderer,
+    controls,
+    kameraUyarla,
+    kameraSifirla,
+    kameraKilidiDegistir,
+    kameraKilitliMi: () => kameraKilitli,
+    tiklanabilirler,
+    legenGrup,
+    legenSuMesh,
+    kopukler,
+    semaverGrup,
+    kozMat,
+    kozIsik,
+    demlikGrup,
+    ustDemlikGrup,
+    ustDemlikMat,
+    halkaGrup,
+    demlikEtiketiGuncelle,
+    buharParcaciklari,
+    dokmeHuzmesi,
+    dokmeHuzmesiMat,
+    sekerlikGrup,
+    limonlukGrup,
+    tepsiGrup,
+    TEPSI_BASE_POS,
+    tepsiNoktalariYerel,
+    fenerler,
+    bardakNesneleri,
+    rafNoktalari,
+    hazirlikNoktalari,
+    legenNoktalari,
+    musteriSlotKonumlari,
+    musteriFiguruOlustur,
+    musteriFiguruSil
+  };
+}
+
+/* ============================================================================
+ * 6. GÖRÜNÜM EŞLEYİCİ
+ * Her karede durum() okunur ve 3D'ye yansıtılır.
+ * ============================================================================ */
+function gorunumEsleyiciOlustur(sahne, ses) {
+  const renkKoyu = new THREE.Color(AYARLAR.RENKLER.KOYU_CAY);
+  const renkAcik = new THREE.Color(AYARLAR.RENKLER.ACIK_CAY);
+  const renkBayat = new THREE.Color(AYARLAR.RENKLER.BAYAT_CAY);
+  const renkDemlikTaze = new THREE.Color('#c83e2b');
+  const renkDemlikBayat = new THREE.Color('#3b2414');
+  const geciciRenk = new THREE.Color();
+  const geciciVec = new THREE.Vector3();
+
+  // Aktif ve ayrılmakta olan müşteri 3D figürleri
+  const musteriHaritasi = new Map();
+  let buharZamani = 0;
+
+  // Tepsi servis salınım animasyonu
+  let tepsiAnim = { aktif: false, sure: 0, toplamSure: 0.65, hedef: new THREE.Vector3() };
+
+  function bardakHedefKonumu(b) {
+    if (b.asama === 'temiz') {
+      return sahne.rafNoktalari[b.rafSlid >= 0 ? b.rafSlid : b.id];
+    }
+    if (b.asama === 'hazirlikta-bos' || b.asama === 'koyu' || b.asama === 'acik') {
+      return sahne.hazirlikNoktalari[Math.max(0, b.hazirlikSlid)];
+    }
+    if (b.asama === 'tepside') {
+      const yerel = sahne.tepsiNoktalariYerel[Math.max(0, b.tepsiSlid) % sahne.tepsiNoktalariYerel.length];
+      return geciciVec.copy(sahne.tepsiGrup.position).add(yerel);
+    }
+    if (b.asama === 'kirli' || b.asama === 'yikaniyor') {
+      return sahne.legenNoktalari[b.id % sahne.legenNoktalari.length];
+    }
+    return null;
+  }
+
+  function olaylariIsle(olayListesi, uiKatmani) {
+    for (const o of olayListesi) {
+      if (o.tur === 'uyari') {
+        uiKatmani.uyariGoster(o.mesaj);
+        ses.hata();
+      } else if (o.tur === 'bardak_secildi') {
+        ses.bardakSec();
+      } else if (o.tur === 'dem_dokuldu') {
+        ses.cayDok();
+      } else if (o.tur === 'su_acildi') {
+        ses.suAc();
+      } else if (o.tur === 'seker_eklendi') {
+        ses.sekerAt();
+      } else if (o.tur === 'limon_eklendi') {
+        ses.limonAt();
+      } else if (o.tur === 'tepsiye_kondu') {
+        ses.tepsiKoy();
+      } else if (o.tur === 'bardak_dokuldu') {
+        ses.bardakDok();
+      } else if (o.tur === 'demleme_basladi') {
+        ses.demlemeBasla();
+      } else if (o.tur === 'dem_hazir') {
+        ses.demHazir();
+      } else if (o.tur === 'dem_bayatladi') {
+        ses.demBayat();
+      } else if (o.tur === 'yikama_basladi') {
+        ses.yikamaBasla();
+      } else if (o.tur === 'yikama_bitti') {
+        ses.yikamaBitti();
+      } else if (o.tur === 'musteri_geldi') {
+        ses.musteriGeldi();
+      } else if (o.tur === 'yukseltme_alindi') {
+        ses.yukseltmeAl();
+      } else if (o.tur === 'gun_bitti') {
+        ses.gunBitti(o.basarili);
+      } else if (o.tur === 'teslim') {
+        ses.teslimBasarili(o.seri || 1);
+        const kayit = musteriHaritasi.get(o.musteriId);
+        const slotPos = sahne.musteriSlotKonumlari[o.slot] || new THREE.Vector3(0, 0, -1.25);
+        tepsiAnim.aktif = true;
+        tepsiAnim.sure = 0;
+        tepsiAnim.hedef.set(slotPos.x, sahne.TEPSI_BASE_POS.y + 0.38, slotPos.z + 0.65);
+
+        if (kayit) {
+          kayit.durum = 'CIKIYOR';
+          kayit.hedefX = 5.8;
+          kayit.cikisSayaci = 1.3;
+          kayit.tepki = o.tip === 'VIP' ? '🤩' : '😊';
+          const yaziKonum = kayit.grup.position.clone().add(new THREE.Vector3(0, 1.9, 0));
+          uiKatmani.ucanYaziEkle(yaziKonum, `+${o.kazanc} TL`, 'positive');
+          if (o.seri >= 2) {
+            uiKatmani.ucanYaziEkle(
+              kayit.grup.position.clone().add(new THREE.Vector3(0, 2.28, 0)),
+              `🔥 ${o.seri}x Seri (+${o.seriBonusu} TL)`,
+              'combo'
+            );
+          } else if (o.ozelPrim > 0) {
+            uiKatmani.ucanYaziEkle(
+              kayit.grup.position.clone().add(new THREE.Vector3(0, 2.28, 0)),
+              o.tip === 'VIP' ? `👑 Müdavim +${o.ozelPrim} TL` : `⚡ Hız Primi +${o.ozelPrim} TL`,
+              'combo'
+            );
+          }
+        }
+      } else if (o.tur === 'kacti') {
+        ses.musteriKacti();
+        const kayit = musteriHaritasi.get(o.musteriId);
+        if (kayit) {
+          kayit.durum = 'CIKIYOR';
+          kayit.hedefX = -5.8;
+          kayit.cikisSayaci = 1.3;
+          kayit.tepki = '😠';
+          uiKatmani.ucanYaziEkle(kayit.grup.position.clone().add(new THREE.Vector3(0, 1.9, 0)), `-${o.ceza} TL`, 'negative');
+        }
+      }
+    }
+  }
+
+  function guncelle(anlikDurum, gercekDt) {
+    buharZamani += gercekDt;
+
+    // 0. Çarşı fenerleri salınımı & Semaver köz titremesi
+    sahne.fenerler.forEach(f => {
+      f.pivot.rotation.z = Math.sin(buharZamani * 1.4 + f.faz) * 0.055;
+      f.pivot.rotation.x = Math.cos(buharZamani * 1.1 + f.faz) * 0.03;
+      f.isik.intensity = 0.85 + Math.sin(buharZamani * 5.2 + f.faz) * 0.12;
+    });
+    const kozNabiz = 0.55 + Math.sin(buharZamani * 9.5) * 0.18 + Math.cos(buharZamani * 15) * 0.08;
+    sahne.kozIsik.intensity = kozNabiz;
+    sahne.kozMat.color.setRGB(1.0, 0.25 + kozNabiz * 0.22, 0.05);
+
+    // 1. Tepsi servis animasyonu
+    if (tepsiAnim.aktif) {
+      tepsiAnim.sure += gercekDt;
+      const p = Math.min(1, tepsiAnim.sure / tepsiAnim.toplamSure);
+      const salinim = Math.sin(p * Math.PI);
+      sahne.tepsiGrup.position.lerpVectors(sahne.TEPSI_BASE_POS, tepsiAnim.hedef, salinim);
+      sahne.tepsiGrup.rotation.x = -salinim * 0.14;
+      sahne.tepsiGrup.rotation.z = Math.sin(p * Math.PI * 2) * 0.08;
+      if (p >= 1) {
+        tepsiAnim.aktif = false;
+        sahne.tepsiGrup.position.copy(sahne.TEPSI_BASE_POS);
+        sahne.tepsiGrup.rotation.set(0, 0, 0);
+      }
+    }
+
+    // 2. Demlik etiketi, gövde rengi, ilerleme halkası ve dökme eğilmesi
+    sahne.demlikEtiketiGuncelle(anlikDurum.demlik.etiket, anlikDurum.demlik.durum);
+    sahne.ustDemlikMat.color.lerp(
+      anlikDurum.demlik.durum === 'BAYAT' ? renkDemlikBayat : renkDemlikTaze,
+      Math.min(1, gercekDt * 8)
+    );
+    if (anlikDurum.demlik.durum === 'DEMLENIYOR') {
+      sahne.halkaGrup.visible = true;
+      sahne.halkaGrup.rotation.z -= gercekDt * 5.5;
+    } else {
+      sahne.halkaGrup.visible = false;
+    }
+
+    // Dökme animasyonu kontrolü (yalnızca hazırlık sırasındaki bardak dolarken veya açılırken)
+    let aktifDokulen = null;
+    for (const b of anlikDurum.bardaklar) {
+      if ((b.gecisTuru === 'dolduruluyor' || b.gecisTuru === 'aciliyor') && b.asama !== 'tepside') {
+        aktifDokulen = b;
+        break;
+      }
+    }
+    const hedefDemlikEgilme = (aktifDokulen && aktifDokulen.gecisTuru === 'dolduruluyor') ? -0.26 : 0;
+    sahne.ustDemlikGrup.rotation.z = THREE.MathUtils.lerp(sahne.ustDemlikGrup.rotation.z, hedefDemlikEgilme, Math.min(1, gercekDt * 10));
+
+    if (aktifDokulen) {
+      const bObj = sahne.bardakNesneleri[aktifDokulen.id];
+      sahne.dokmeHuzmesi.visible = true;
+      sahne.dokmeHuzmesi.position.set(bObj.grup.position.x, bObj.grup.position.y + 0.30, bObj.grup.position.z);
+      sahne.dokmeHuzmesiMat.color.set(aktifDokulen.gecisTuru === 'dolduruluyor' ? '#5e1406' : '#d8f3ff');
+    } else {
+      sahne.dokmeHuzmesi.visible = false;
+    }
+
+    // 3. Demlik buhar parçacıkları
+    const bT = buharZamani * 0.55;
+    sahne.buharParcaciklari.forEach(p => {
+      if (!anlikDurum.demlik.buharAktif) {
+        p.mesh.visible = false;
+        return;
+      }
+      p.mesh.visible = true;
+      const t = (bT + p.faz) % 1;
+      p.mesh.position.set(
+        sahne.demlikGrup.position.x + Math.sin(t * 6 + p.faz * 10) * 0.05 + p.kaymaX,
+        sahne.demlikGrup.position.y + 0.68 + t * 0.95,
+        sahne.demlikGrup.position.z + p.kaymaZ
+      );
+      p.mesh.scale.setScalar(0.7 + t * 1.6);
+      p.mesh.material.opacity = Math.max(0, (1 - t) * 0.36);
+    });
+
+    // 4. Bardakların konumu, sıvı seviyesi, rengi, şekeri, limonu, sıcak buharı ve seçimi
+    const aktifBardakSayisi = anlikDurum.bardaklar.length;
+    for (let i = 0; i < sahne.bardakNesneleri.length; i++) {
+      const bObj = sahne.bardakNesneleri[i];
+      if (i >= aktifBardakSayisi) {
+        bObj.grup.visible = false;
+        continue;
+      }
+      const bDurum = anlikDurum.bardaklar[i];
+      const hedefKonum = bardakHedefKonumu(bDurum);
+
+      if (!hedefKonum) {
+        bObj.grup.visible = false;
+        continue;
+      }
+      bObj.grup.visible = true;
+      bObj.grup.position.lerp(hedefKonum, Math.min(1, gercekDt * 13));
+
+      if (bDurum.asama === 'kirli' || bDurum.asama === 'yikaniyor') {
+        bObj.grup.rotation.z = Math.sin(bDurum.id * 1.7) * 0.25;
+        bObj.camMat.color.set('#b89d82');
+        bObj.camMat.opacity = 0.58;
+        bObj.kirliIzMesh.visible = true;
+      } else {
+        bObj.grup.rotation.z = 0;
+        bObj.camMat.color.set('#ffffff');
+        bObj.camMat.opacity = 0.34;
+        bObj.kirliIzMesh.visible = false;
+      }
+
+      const doluMu = (bDurum.ton === 'koyu' || bDurum.ton === 'acik');
+      if (doluMu) {
+        bObj.siviMesh.visible = true;
+        const hedefSeviye = bDurum.gecisTuru === 'dolduruluyor'
+          ? Math.max(0.08, bDurum.gecisIlerleme * AYARLAR.DOLUM_ORANI)
+          : AYARLAR.DOLUM_ORANI;
+        bObj.siviMesh.scale.y = hedefSeviye;
+
+        if (bDurum.bayat) {
+          geciciRenk.copy(renkBayat);
+        } else if (bDurum.ton === 'acik') {
+          if (bDurum.gecisTuru === 'aciliyor') {
+            geciciRenk.copy(renkKoyu).lerp(renkAcik, bDurum.gecisIlerleme);
+          } else {
+            geciciRenk.copy(renkAcik);
+          }
+        } else {
+          geciciRenk.copy(renkKoyu);
+        }
+        bObj.siviMat.color.copy(geciciRenk);
+
+        // Taze sıcak çaydan hafif buhar
+        if (!bDurum.bayat) {
+          bObj.bardakBuhar.visible = true;
+          const bt = (buharZamani * 0.9 + bDurum.id * 0.31) % 1;
+          bObj.bardakBuhar.position.set(Math.sin(bt * 5) * 0.015, 0.21 + bt * 0.16, 0);
+          bObj.bardakBuhar.scale.setScalar(0.6 + bt * 0.9);
+          bObj.bardakBuhar.material.opacity = (1 - bt) * 0.28;
+        } else {
+          bObj.bardakBuhar.visible = false;
+        }
+      } else {
+        bObj.siviMesh.visible = false;
+        bObj.bardakBuhar.visible = false;
+      }
+
+      bObj.sekerMesh.visible = Boolean(bDurum.seker);
+      bObj.limonMesh.visible = Boolean(bDurum.limon);
+
+      const seciliMi = (anlikDurum.seciliBardakId === bDurum.id);
+      bObj.secimHalka.visible = seciliMi;
+      bObj.tabakMat.emissive.set(seciliMi ? '#ff9d2e' : '#000000');
+      bObj.tabakMat.emissiveIntensity = seciliMi ? 0.65 : 0;
+    }
+
+    // 5. Legen yıkama ve köpük baloncukları animasyonu
+    if (anlikDurum.yikama.aktif) {
+      sahne.legenSuMesh.position.y = 0.14 + Math.sin(buharZamani * 14) * 0.014;
+      sahne.legenSuMesh.material.color.set('#b8f2ff');
+      sahne.kopukler.forEach(k => {
+        k.mesh.visible = true;
+        const kt = (buharZamani * 1.1 + k.faz) % 1;
+        k.mesh.position.set(
+          Math.cos(k.aci + buharZamani) * k.yaricap,
+          0.14 + kt * 0.32,
+          Math.sin(k.aci + buharZamani) * k.yaricap
+        );
+        k.mesh.scale.setScalar(0.6 + Math.sin(kt * Math.PI) * 0.8);
+        k.mesh.material.opacity = (1 - kt) * 0.78;
+      });
+    } else {
+      sahne.legenSuMesh.position.y = 0.12;
+      sahne.legenSuMesh.material.color.set('#7ab8cc');
+      sahne.kopukler.forEach(k => { k.mesh.visible = false; });
+    }
+
+    // 6. Müşteri figürlerinin canlı yürüyüş, nefes ve sabırsızlık hareketleri
+    const aktifMusteriMap = new Map(anlikDurum.musteriler.map(m => [m.id, m]));
+
+    for (const m of anlikDurum.musteriler) {
+      if (!musteriHaritasi.has(m.id)) {
+        const fig = sahne.musteriFiguruOlustur(m);
+        const hedefSlot = sahne.musteriSlotKonumlari[m.slot];
+        const baslangicX = m.slot === 0 ? -5.5 : 5.5;
+        fig.position.set(baslangicX, 0, hedefSlot.z);
+        musteriHaritasi.set(m.id, {
+          id: m.id,
+          grup: fig,
+          slot: m.slot,
+          hedefX: hedefSlot.x,
+          durum: 'BEKLIYOR',
+          cikisSayaci: 0,
+          tepki: null
+        });
+      }
+    }
+
+    for (const [mId, kayit] of musteriHaritasi.entries()) {
+      const mVeri = aktifMusteriMap.get(mId);
+      if (!mVeri && kayit.durum !== 'CIKIYOR') {
+        sahne.musteriFiguruSil(kayit.grup);
+        musteriHaritasi.delete(mId);
+        continue;
+      }
+
+      const hiz = kayit.durum === 'CIKIYOR' ? 5.5 : 4.6;
+      const oncekiX = kayit.grup.position.x;
+      kayit.grup.position.x = THREE.MathUtils.lerp(oncekiX, kayit.hedefX, Math.min(1, gercekDt * hiz));
+      const yuruyorMu = Math.abs(kayit.grup.position.x - kayit.hedefX) > 0.06;
+
+      if (yuruyorMu) {
+        kayit.grup.position.y = Math.abs(Math.sin(buharZamani * 11 + mId)) * 0.08;
+        kayit.grup.rotation.z = Math.sin(buharZamani * 11 + mId) * 0.04;
+      } else if (mVeri && mVeri.sabirOrani < 0.30) {
+        // Sabırsızlanan müşteri hızlı zıplar / sallanır
+        kayit.grup.position.y = Math.abs(Math.sin(buharZamani * 13 + mId)) * 0.06;
+        kayit.grup.rotation.z = Math.sin(buharZamani * 14 + mId) * 0.05;
+      } else {
+        // Sakin bekleme nefesi
+        kayit.grup.position.y = Math.sin(buharZamani * 2.5 + mId) * 0.015;
+        kayit.grup.rotation.z = 0;
+      }
+
+      if (kayit.durum === 'CIKIYOR') {
+        kayit.cikisSayaci -= gercekDt;
+        if (kayit.cikisSayaci <= 0) {
+          sahne.musteriFiguruSil(kayit.grup);
+          musteriHaritasi.delete(mId);
+        }
+      }
+    }
+  }
+
+  return {
+    olaylariIsle,
+    guncelle,
+    musteriHaritasi
+  };
+}
+
+/* ============================================================================
+ * 7. GİRİŞ KATMANI (Raycaster, Tıklama / Sürükleme Ayrımı > 5px, Hover Parlaması)
+ * ============================================================================ */
+function girisKatmaniOlustur(sahne, cekirdek, ses, duraklatKontrol, uiEylemler) {
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let baslangicX = 0;
+  let baslangicY = 0;
+  let fareBasili = false;
+  let uzerindekiGrup = null;
+
+  function grupParlaklikAyarla(grup, aktif) {
+    if (!grup) return;
+    grup.traverse(child => {
+      if (child.isMesh && child.material && child.material.emissive) {
+        if (grup.userData.etkilesim?.tur === 'bardak_sec' &&
+            cekirdek.durum().seciliBardakId === grup.userData.etkilesim.bardakId) {
+          return;
+        }
+        child.material.emissive.set(aktif ? '#593312' : '#000000');
+        child.material.emissiveIntensity = aktif ? 0.45 : 0;
+      }
+    });
+  }
+
+  function hedefBul(clientX, clientY) {
+    const rect = sahne.renderer.domElement.getBoundingClientRect();
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, sahne.camera);
+
+    const kesisimler = raycaster.intersectObjects(sahne.tiklanabilirler, false);
+    for (const k of kesisimler) {
+      let obj = k.object;
+      let gorunur = true;
+      while (obj) {
+        if (!obj.visible) { gorunur = false; break; }
+        obj = obj.parent;
+      }
+      if (gorunur && k.object.userData.etkilesim) {
+        return k.object.userData.etkilesim;
+      }
+    }
+    return null;
+  }
+
+  const domElem = sahne.renderer.domElement;
+
+  domElem.addEventListener('pointerdown', (e) => {
+    ses.uyandir();
+    if (e.button !== 0) return;
+    fareBasili = true;
+    baslangicX = e.clientX;
+    baslangicY = e.clientY;
+  });
+
+  domElem.addEventListener('pointermove', (e) => {
+    if (cekirdek.durum().evre !== 'AKTIF' || duraklatKontrol.al()) {
+      if (uzerindekiGrup) {
+        grupParlaklikAyarla(uzerindekiGrup, false);
+        uzerindekiGrup = null;
+      }
+      domElem.style.cursor = 'default';
+      return;
+    }
+
+    const bulunan = hedefBul(e.clientX, e.clientY);
+    const yeniGrup = bulunan ? bulunan.kokGrup : null;
+    if (yeniGrup !== uzerindekiGrup) {
+      grupParlaklikAyarla(uzerindekiGrup, false);
+      uzerindekiGrup = yeniGrup;
+      grupParlaklikAyarla(uzerindekiGrup, true);
+    }
+    domElem.style.cursor = yeniGrup ? 'pointer' : 'default';
+  });
+
+  domElem.addEventListener('pointerup', (e) => {
+    if (e.button !== 0 || !fareBasili) return;
+    fareBasili = false;
+
+    const dx = e.clientX - baslangicX;
+    const dy = e.clientY - baslangicY;
+    const esik = e.pointerType === 'touch' ? 14 : AYARLAR.SURUKLEME_ESIGI_PX;
+    if (Math.hypot(dx, dy) > esik) return;
+
+    if (cekirdek.durum().evre !== 'AKTIF' || duraklatKontrol.al()) return;
+
+    const etkilesim = hedefBul(e.clientX, e.clientY);
+    if (!etkilesim) {
+      cekirdek.komut('bosa_tikla');
+      return;
+    }
+
+    if (etkilesim.tur === 'bardak_sec') {
+      cekirdek.komut('bardak_sec', etkilesim.bardakId);
+    } else if (etkilesim.tur === 'musteri') {
+      cekirdek.komut('musteri', etkilesim.musteriId);
+    } else {
+      cekirdek.komut(etkilesim.tur);
+    }
+  });
+
+  // Klavye kısayolları
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    ses.uyandir();
+    const tus = e.key.toLowerCase();
+
+    if (tus === 'm') { uiEylemler.sesDegistir(); return; }
+    if (tus === 'c') { sahne.kameraSifirla(); return; }
+    if (tus === 'p') {
+      if (cekirdek.durum().evre === 'AKTIF') uiEylemler.duraklatDegistir();
+      return;
+    }
+    if (tus === ' ' || e.code === 'Space') {
+      if (cekirdek.durum().evre === 'AKTIF' && !duraklatKontrol.al()) {
+        e.preventDefault();
+        uiEylemler.hizDegistir();
+      }
+      return;
+    }
+
+    if (cekirdek.durum().evre !== 'AKTIF' || duraklatKontrol.al()) return;
+
+    if (tus === 'escape') { cekirdek.komut('bosa_tikla'); }
+    else if (tus === 'q') { cekirdek.komut('raf'); }
+    else if (tus === 'd') { cekirdek.komut('demlik'); }
+    else if (tus === 's') { cekirdek.komut('semaver'); }
+    else if (tus === 'k') { cekirdek.komut('sekerlik'); }
+    else if (tus === 'l') { cekirdek.komut('limonluk'); }
+    else if (tus === 't') { cekirdek.komut('tepsi'); }
+    else if (tus === 'y') { cekirdek.komut('legen'); }
+    else if (tus === '1' || tus === '2' || tus === '3') {
+      cekirdek.komut('musteri', Number(tus) - 1);
+    }
+  });
+}
+
+/* ============================================================================
+ * 8. ARAYÜZ KATMANI (HUD, Yükseltme Dükkânı, Sipariş Balonları, Rekor Kaydı)
+ * ============================================================================ */
+function arayuzKatmaniOlustur(sahne, cekirdek, gorunumEsleyici, hizKontrol, ses, duraklatKontrol) {
+  const elDay = document.getElementById('hud-day');
+  const elWallet = document.getElementById('hud-wallet');
+  const elCombo = document.getElementById('hud-combo');
+  const elRecord = document.getElementById('hud-record');
+  const elEarnings = document.getElementById('hud-earnings');
+  const elGoalBar = document.getElementById('hud-goal-bar');
+  const elTime = document.getElementById('hud-time');
+  const elCleanCups = document.getElementById('hud-clean-cups');
+  const elStatusBar = document.getElementById('hud-status-bar');
+
+  const elSpeedBtn = document.getElementById('speed-btn');
+  const elMuteBtn = document.getElementById('mute-btn');
+  const elPauseBtn = document.getElementById('pause-btn');
+  const elCamLockBtn = document.getElementById('cam-lock-btn');
+  const elCamBtn = document.getElementById('cam-btn');
+  const elHelpBtn = document.getElementById('help-btn');
+
+  // Alt Başparmak Kontrol Paneli Elemanları
+  const elDeliverStrip = document.getElementById('deliver-strip');
+  const elDockBardak = document.getElementById('dock-bardak');
+  const elDockDemlik = document.getElementById('dock-demlik');
+  const elDockSemaver = document.getElementById('dock-semaver');
+  const elDockSeker = document.getElementById('dock-seker');
+  const elDockLimon = document.getElementById('dock-limon');
+  const elDockTepsi = document.getElementById('dock-tepsi');
+  const elDockYika = document.getElementById('dock-yika');
+  const elDockDok = document.getElementById('dock-dok');
+
+  const elBadgeBardak = document.getElementById('badge-bardak');
+  const elBadgeDemlik = document.getElementById('badge-demlik');
+  const elLblDemlik = document.getElementById('lbl-demlik');
+  const elBadgeTepsi = document.getElementById('badge-tepsi');
+  const elBadgeKirli = document.getElementById('badge-kirli');
+  const elLblYika = document.getElementById('lbl-yika');
+  const elLblDok = document.getElementById('lbl-dok');
+
+  function titresim(desen) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(desen);
+    } catch (_) {}
+  }
+
+  function kameraKilidiButonGuncelle() {
+    const kilitli = sahne.kameraKilitliMi();
+    elCamLockBtn.textContent = kilitli ? '🔒' : '🔓';
+    elCamLockBtn.classList.toggle('active-btn', kilitli);
+    elCamLockBtn.title = kilitli ? 'Kamera Kilitli (Açmak için dokun)' : 'Kamera Serbest (Kilitlemek için dokun)';
+  }
+  kameraKilidiButonGuncelle();
+
+  const elWarning = document.getElementById('warning-box');
+  const elBubbles = document.getElementById('bubbles-container');
+  const elFloating = document.getElementById('floating-texts-container');
+
+  const panelStart = document.getElementById('panel-day-start');
+  const startTitle = document.getElementById('start-panel-title');
+  const startDesc = document.getElementById('start-panel-desc');
+  const startShopWrap = document.getElementById('start-shop-wrap');
+  const startShopWallet = document.getElementById('start-shop-wallet');
+  const startShopGrid = document.getElementById('start-shop-grid');
+  const btnStartShift = document.getElementById('btn-start-shift');
+
+  const panelEnd = document.getElementById('panel-day-end');
+  const endTitle = document.getElementById('end-panel-title');
+  const sumEarnings = document.getElementById('sum-earnings');
+  const sumOrders = document.getElementById('sum-orders');
+  const sumCups = document.getElementById('sum-cups');
+  const sumStreak = document.getElementById('sum-streak');
+  const sumEscaped = document.getElementById('sum-escaped');
+  const sumStale = document.getElementById('sum-stale');
+  const endShopWallet = document.getElementById('end-shop-wallet');
+  const endShopGrid = document.getElementById('end-shop-grid');
+  const btnDayEndAction = document.getElementById('btn-day-end-action');
+
+  const panelWin = document.getElementById('panel-campaign-win');
+  const winTotalEarnings = document.getElementById('win-total-earnings');
+  const winLastOrders = document.getElementById('win-last-orders');
+  const winLastCups = document.getElementById('win-last-cups');
+  const winLastStreak = document.getElementById('win-last-streak');
+  const winShopWallet = document.getElementById('win-shop-wallet');
+  const winShopGrid = document.getElementById('win-shop-grid');
+  const btnEndless = document.getElementById('btn-endless-mode');
+  const btnRestart = document.getElementById('btn-restart-game');
+
+  const panelPause = document.getElementById('panel-pause');
+  const btnResume = document.getElementById('btn-resume-game');
+  const btnPauseRestart = document.getElementById('btn-pause-restart');
+
+  const panelHelp = document.getElementById('panel-help');
+  const btnCloseHelp = document.getElementById('btn-close-help');
+
+  const REKOR_ANAHTARI = 'cay_ocagi_v2_rekor';
+  let rekor = { enYuksekGun: 1, enYuksekKazanc: 0 };
+  try {
+    const ham = localStorage.getItem(REKOR_ANAHTARI);
+    if (ham) rekor = { ...rekor, ...JSON.parse(ham) };
+  } catch (_) {}
+
+  function rekorGuncelle(gun, toplamKazanc) {
+    let degisti = false;
+    if (gun > rekor.enYuksekGun) { rekor.enYuksekGun = gun; degisti = true; }
+    if (toplamKazanc > rekor.enYuksekKazanc) { rekor.enYuksekKazanc = toplamKazanc; degisti = true; }
+    if (degisti) {
+      try { localStorage.setItem(REKOR_ANAHTARI, JSON.stringify(rekor)); } catch (_) {}
+    }
+    elRecord.textContent = rekor.enYuksekKazanc > 0
+      ? `Rekor: Gün ${rekor.enYuksekGun} · ${rekor.enYuksekKazanc} TL`
+      : '';
+  }
+  rekorGuncelle(1, 0);
+
+  let uyariKalanSure = 0;
+  let sonDukkanAnahtari = '';
+  const ucanYazilar = [];
+  const balonElemanlari = new Map();
+  const tepkiElemanlari = new Map();
+
+  function hizDugmesiniGuncelle() {
+    const carpan = hizKontrol.al();
+    elSpeedBtn.textContent = `⏩ ×${carpan}`;
+    elSpeedBtn.classList.toggle('active-speed', carpan > 1);
+  }
+
+  function sesDegistir() {
+    const sessiz = ses.sessizDegistir();
+    elMuteBtn.textContent = sessiz ? '🔇' : '🔊';
+    elMuteBtn.classList.toggle('active-btn', sessiz);
+  }
+
+  function duraklatDegistir() {
+    const d = duraklatKontrol.degistir();
+    panelPause.classList.toggle('hidden', !d);
+    elPauseBtn.classList.toggle('active-btn', d);
+  }
+
+  function hizDegistir() {
+    hizKontrol.sonrakiHiz();
+    hizDugmesiniGuncelle();
+  }
+
+  elSpeedBtn.addEventListener('click', () => { ses.uyandir(); hizDegistir(); });
+  elMuteBtn.addEventListener('click', () => { sesDegistir(); });
+  elPauseBtn.addEventListener('click', () => {
+    ses.uyandir();
+    if (cekirdek.durum().evre === 'AKTIF') duraklatDegistir();
+  });
+  elCamLockBtn.addEventListener('click', () => {
+    ses.uyandir();
+    titresim(10);
+    sahne.kameraKilidiDegistir();
+    kameraKilidiButonGuncelle();
+  });
+  elCamBtn.addEventListener('click', () => { ses.uyandir(); titresim(10); sahne.kameraSifirla(); });
+  elHelpBtn.addEventListener('click', () => { ses.uyandir(); panelHelp.classList.remove('hidden'); });
+
+  // Alt Başparmak Kontrol Paneli Akıllı Dokunuş Olayları
+  function dockIslem(fn) {
+    ses.uyandir();
+    if (cekirdek.durum().evre !== 'AKTIF' || duraklatKontrol.al()) return;
+    titresim(10);
+    fn();
+  }
+
+  elDockBardak.addEventListener('click', () => dockIslem(() => {
+    cekirdek.komut('raf');
+  }));
+
+  elDockDemlik.addEventListener('click', () => dockIslem(() => {
+    const d = cekirdek.durum();
+    const secili = d.seciliBardakId !== null ? d.bardaklar.find(x => x.id === d.seciliBardakId) : null;
+    // Dem bittiyse veya bayatsa (ve elimizde boş bardak yoksa) tek dokunuşla otomatik demle!
+    if (d.demlik.durum === 'BITTI' || (d.demlik.durum === 'BAYAT' && (!secili || secili.asama !== 'hazirlikta-bos'))) {
+      if (d.seciliBardakId !== null) cekirdek.komut('bosa_tikla');
+      cekirdek.komut('demlik');
+      return;
+    }
+    // Elimizde boş bardak yoksa ve dem tazeyse doğrudan ilk boş hazırlık bardağını ya da raftan bardak alıp doldur
+    if (!secili) {
+      const hazirBos = d.bardaklar.find(x => x.asama === 'hazirlikta-bos');
+      if (hazirBos) {
+        cekirdek.komut('bardak_sec', hazirBos.id);
+        cekirdek.komut('demlik');
+        return;
+      }
+      if (d.demlik.kalan < d.demlik.kapasite && d.demlik.durum !== 'DEMLENIYOR') {
+        // Hiç bardak seçili değilken demliğe basılınca normal kural: yeniden demle
+        cekirdek.komut('demlik');
+        return;
+      }
+    }
+    cekirdek.komut('demlik');
+  }));
+
+  elDockSemaver.addEventListener('click', () => dockIslem(() => {
+    cekirdek.komut('semaver');
+  }));
+
+  elDockSeker.addEventListener('click', () => dockIslem(() => {
+    cekirdek.komut('sekerlik');
+  }));
+
+  elDockLimon.addEventListener('click', () => dockIslem(() => {
+    cekirdek.komut('limonluk');
+  }));
+
+  elDockTepsi.addEventListener('click', () => dockIslem(() => {
+    cekirdek.komut('tepsi');
+  }));
+
+  elDockYika.addEventListener('click', () => dockIslem(() => {
+    const d = cekirdek.durum();
+    // Tek dokunuşla yıkama: seçili bardak varsa önce seçimi bırakıp kirli bardakları yıkar!
+    if (d.kirliBardakSayisi > 0 && !d.yikama.aktif) {
+      if (d.seciliBardakId !== null) cekirdek.komut('bosa_tikla');
+      cekirdek.komut('legen');
+    } else {
+      if (d.seciliBardakId !== null) cekirdek.komut('bosa_tikla');
+      cekirdek.komut('legen');
+    }
+  }));
+
+  elDockDok.addEventListener('click', () => dockIslem(() => {
+    const d = cekirdek.durum();
+    if (d.seciliBardakId !== null) {
+      cekirdek.komut('legen');
+      return;
+    }
+    // Seçili bardak yoksa ama tepside hatalı bardak varsa son konan bardağı tepsiden dök!
+    const tepsideki = [...d.bardaklar].reverse().find(x => x.asama === 'tepside');
+    if (tepsideki) {
+      cekirdek.komut('bardak_sec', tepsideki.id);
+      cekirdek.komut('legen');
+      return;
+    }
+    uyariGoster('Dökülecek seçili veya tepside bardak yok');
+  }));
+  btnCloseHelp.addEventListener('click', () => { panelHelp.classList.add('hidden'); });
+  btnResume.addEventListener('click', () => { duraklatKontrol.ayarla(false); panelPause.classList.add('hidden'); elPauseBtn.classList.remove('active-btn'); });
+  btnPauseRestart.addEventListener('click', () => {
+    duraklatKontrol.ayarla(false);
+    panelPause.classList.add('hidden');
+    elPauseBtn.classList.remove('active-btn');
+    hizKontrol.sifirla();
+    hizDugmesiniGuncelle();
+    cekirdek.komut('bastan_basla');
+  });
+
+  btnStartShift.addEventListener('click', () => {
+    ses.uyandir();
+    cekirdek.komut('vardiya_baslat');
+  });
+
+  btnDayEndAction.addEventListener('click', () => {
+    ses.uyandir();
+    const d = cekirdek.durum();
+    if (d.hedefTuttuMu) {
+      cekirdek.komut('sonraki_gun');
+    } else {
+      cekirdek.komut('gunu_tekrarla');
+    }
+  });
+
+  btnEndless.addEventListener('click', () => {
+    ses.uyandir();
+    cekirdek.komut('sonsuz_baslat');
+  });
+
+  btnRestart.addEventListener('click', () => {
+    ses.uyandir();
+    hizKontrol.sifirla();
+    hizDugmesiniGuncelle();
+    cekirdek.komut('bastan_basla');
+  });
+
+  function dukkanIzgaraCiz(gridEl, walletEl, anlikDurum) {
+    walletEl.textContent = `Kasa: ${anlikDurum.kasa} TL`;
+    gridEl.innerHTML = '';
+    for (const y of AYARLAR.YUKSELTMELER) {
+      const alindi = anlikDurum.yukseltmeler.includes(y.id);
+      const yetiyor = anlikDurum.kasa >= y.fiyat;
+      const kart = document.createElement('div');
+      kart.className = 'upgrade-card' + (alindi ? ' owned' : '');
+      kart.innerHTML = `
+        <div>
+          <div class="upgrade-top">
+            <span class="upgrade-name">${y.simge} ${y.ad}</span>
+          </div>
+          <div class="upgrade-desc">${y.aciklama}</div>
+        </div>
+        ${alindi
+          ? '<span class="upgrade-owned-tag">✓ Kurulu</span>'
+          : `<button class="upgrade-buy-btn" type="button" ${yetiyor ? '' : 'disabled'}>${y.fiyat} TL Al</button>`}
+      `;
+      if (!alindi) {
+        const btn = kart.querySelector('.upgrade-buy-btn');
+        btn.addEventListener('click', () => {
+          ses.uyandir();
+          cekirdek.komut('yukseltme_al', y.id);
+        });
+      }
+      gridEl.appendChild(kart);
+    }
+  }
+
+  function uyariGoster(mesaj) {
+    titresim([30, 25, 30]);
+    elWarning.textContent = mesaj;
+    elWarning.classList.add('visible');
+    uyariKalanSure = AYARLAR.UYARI_SURESI;
+  }
+
+  function ucanYaziEkle(dunyaKonumu, metin, stil = 'positive') {
+    const div = document.createElement('div');
+    div.className = 'floating-tl' + (stil === 'negative' ? ' negative' : (stil === 'combo' ? ' combo' : ''));
+    div.textContent = metin;
+    elFloating.appendChild(div);
+    ucanYazilar.push({
+      el: div,
+      konum: dunyaKonumu.clone(),
+      yas: 0,
+      omur: 1.5
+    });
+  }
+
+  function ekranaIzdusur(vec3) {
+    const v = vec3.clone().project(sahne.camera);
+    const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-(v.y * 0.5) + 0.5) * window.innerHeight;
+    return { x, y, gorunur: v.z < 1 };
+  }
+
+  function bardakSimgesiHTML(ton, seker, limon) {
+    const renk = ton === 'koyu' ? AYARLAR.RENKLER.KOYU_CAY : AYARLAR.RENKLER.ACIK_CAY;
+    return `
+      <div class="cup-icon-wrap">
+        <svg class="cup-svg" viewBox="0 0 24 32">
+          <path d="M4,2 L20,2 C19,9 15,13 15,16 C15,19 19,24 18,30 L6,30 C5,24 9,19 9,16 C9,13 5,9 4,2 Z"
+                fill="${renk}" stroke="#4a2810" stroke-width="2"/>
+        </svg>
+        ${seker ? '<span class="sugar-cube-icon" title="Şekerli"></span>' : ''}
+        ${limon ? '<span class="lemon-icon" title="Limonlu"></span>' : ''}
+      </div>
+    `;
+  }
+
+  function sabirRengi(oran) {
+    if (oran > 0.5) return '#38b83c';
+    if (oran > 0.25) return '#e6a822';
+    return '#d93426';
+  }
+
+  function gunAciklamasiAl(gun, sonsuz) {
+    if (gun === 1) return 'Çarşı uyanıyor! Koyu ve açık çayları taze demle hazırla, askılı tepsiyle esnafa ulaştır.';
+    if (gun === 2) return 'Bugün çarşı daha hareketli! Şekerli ve taze limonlu çay istekleri ile VIP Müdavim ve Aceleci esnaf geliyor.';
+    if (gun === 3) return 'Haftanın en yoğun günü! Hızlı servisle seri bonusu topla, demini taze tut ve Usta Çaycı unvanını kazan.';
+    return `Sonsuz Çarşı Modu · Gün ${gun}! Çarşı kalabalıklaşıyor — yükseltmelerinle en yüksek günlük kazanç rekorunu kır.`;
+  }
+
+  function durumCubuguMetni(d) {
+    const mobil = window.innerWidth <= 768;
+    if (d.seciliBardakId !== null) {
+      const b = d.bardaklar.find(x => x.id === d.seciliBardakId);
+      if (b) {
+        if (b.asama === 'hazirlikta-bos') {
+          return mobil
+            ? '<b>Boş Bardak</b> · <b>Dem</b> düğmesine dokun'
+            : '<b>Seçili:</b> Boş Bardak · Sonraki adım: <b>Demlik (D)</b> ile çay doldur veya <b>Legen (Y)</b>';
+        }
+        const ozellik = [
+          b.ton === 'koyu' ? 'Koyu Çay' : 'Açık Çay',
+          b.seker ? 'Şekerli' : '',
+          b.limon ? 'Limonlu' : '',
+          b.bayat ? '(Bayat)' : ''
+        ].filter(Boolean).join(' · ');
+        return mobil
+          ? `<b>${ozellik}</b> · Açık / Şeker / Limon / <b>Tepsi</b>`
+          : `<b>Seçili Bardak:</b> ${ozellik} · <b>Semaver (S)</b> / <b>Şeker (K)</b> / <b>Limon (L)</b> / <b>Tepsi (T)</b>`;
+      }
+    }
+    if (d.tepsidekiSayi > 0) {
+      const eslesen = d.musteriler.find(m => m.tepsiEslesiyorMu);
+      if (eslesen) {
+        return mobil
+          ? `<b>Tepsi Hazır!</b> Yeşil <b>TESLİM ET</b> düğmesine dokun`
+          : `<b>Tepsi Hazır (${d.tepsidekiSayi}/${d.tepsiKapasitesi}):</b> Yeşil parlayan müşteriye tıkla veya <b>${eslesen.slot + 1}</b> tuşuna bas!`;
+      }
+      return mobil
+        ? `<b>Tepside ${d.tepsidekiSayi}/${d.tepsiKapasitesi} bardak</b> · Eksikleri tamamla`
+        : `<b>Tepside ${d.tepsidekiSayi}/${d.tepsiKapasitesi} bardak var.</b> Eksik bardakları ekle (Q) veya müşteriye teslim et (1-3).`;
+    }
+    if (d.demlik.durum === 'BITTI' || d.demlik.durum === 'BAYAT') {
+      return mobil
+        ? `<b>Dem ${d.demlik.durum === 'BITTI' ? 'bitti' : 'bayatladı'}!</b> <b>Demle!</b> düğmesine dokun`
+        : `<b>Dikkat:</b> Dem ${d.demlik.durum === 'BITTI' ? 'bitti' : 'bayatladı'}! Boşken <b>Demliğe (D)</b> tıklayıp taze demle.`;
+    }
+    if (d.kirliBardakSayisi >= 3 && !d.yikama.aktif) {
+      return mobil
+        ? `<b>${d.kirliBardakSayisi} kirli bardak</b> · <b>Yıka</b> düğmesine dokun`
+        : `<b>İpucu:</b> Legende ${d.kirliBardakSayisi} kirli bardak birikti — <b>Legene (Y)</b> tıklayıp yıka!`;
+    }
+    return mobil
+      ? '<b>Hazırla:</b> Bardak → Dem → Açık/Şeker/Limon → Tepsi'
+      : '<b>Kontroller:</b> Bardak (Q) → Demlik (D) → Semaver (S) / Şeker (K) / Limon (L) → Tepsi (T) → Müşteri (1-3)';
+  }
+
+  let sonTeslimAnahtari = '';
+  function dockVeTeslimGuncelle(d) {
+    const secili = d.seciliBardakId !== null ? d.bardaklar.find(x => x.id === d.seciliBardakId) : null;
+    const doluSecili = secili && (secili.ton === 'koyu' || secili.ton === 'acik') && secili.asama !== 'tepside';
+    const bosSecili = secili && secili.asama === 'hazirlikta-bos';
+
+    // Rozetler ve dinamik etiketler
+    elBadgeBardak.textContent = `${d.temizBardakSayisi}`;
+    elBadgeTepsi.textContent = `${d.tepsidekiSayi}/${d.tepsiKapasitesi}`;
+    elBadgeKirli.textContent = `${d.kirliBardakSayisi}`;
+
+    if (d.demlik.durum === 'DEMLENIYOR') {
+      elBadgeDemlik.textContent = `${Math.round(d.demlik.demlemeIlerleme * 100)}%`;
+      elLblDemlik.textContent = 'Demleniyor';
+    } else if (d.demlik.durum === 'BITTI') {
+      elBadgeDemlik.textContent = '0';
+      elLblDemlik.textContent = 'Demle!';
+    } else if (d.demlik.durum === 'BAYAT') {
+      elBadgeDemlik.textContent = 'Bayat';
+      elLblDemlik.textContent = 'Demle!';
+    } else {
+      elBadgeDemlik.textContent = `${d.demlik.kalan}`;
+      elLblDemlik.textContent = bosSecili ? 'Doldur' : 'Dem';
+    }
+
+    elLblYika.textContent = d.yikama.aktif ? `${Math.ceil(d.yikama.kalanSure)}s` : 'Yıka';
+    elLblDok.textContent = secili ? 'Dök' : (d.tepsidekiSayi > 0 ? 'Tepsiden' : 'Dök');
+
+    // Akıllı adım parlamaları (oyuncuyu bir sonraki hamleye yönlendirir!)
+    const musteriVar = d.musteriler.length > 0;
+    const eslesenler = d.musteriler.filter(m => m.tepsiEslesiyorMu);
+
+    elDockBardak.classList.toggle('hint-next', !secili && musteriVar && eslesenler.length === 0 && d.temizBardakSayisi > 0);
+    elDockBardak.classList.toggle('dimmed', d.temizBardakSayisi === 0);
+
+    const demAlarm = d.demlik.durum === 'BITTI' || d.demlik.durum === 'BAYAT';
+    elDockDemlik.classList.toggle('hint-alert', demAlarm);
+    elDockDemlik.classList.toggle('hint-next', !demAlarm && bosSecili && d.demlik.durum === 'TAZE');
+    elDockDemlik.classList.toggle('dimmed', d.demlik.durum === 'DEMLENIYOR');
+
+    elDockSemaver.classList.toggle('hint-next', Boolean(doluSecili && secili.ton === 'koyu'));
+    elDockSemaver.classList.toggle('dimmed', !doluSecili || secili.ton === 'acik');
+
+    elDockSeker.classList.toggle('dimmed', !doluSecili || secili.seker);
+    elDockLimon.classList.toggle('dimmed', !doluSecili || secili.limon);
+
+    elDockTepsi.classList.toggle('hint-ready', Boolean(doluSecili));
+    elDockTepsi.classList.toggle('dimmed', !doluSecili);
+
+    elDockYika.classList.toggle('hint-alert', d.kirliBardakSayisi >= 3 && !d.yikama.aktif);
+    elDockYika.classList.toggle('hint-next', d.kirliBardakSayisi > 0 && d.kirliBardakSayisi < 3 && !d.yikama.aktif);
+    elDockYika.classList.toggle('dimmed', d.kirliBardakSayisi === 0 && !d.yikama.aktif);
+
+    elDockDok.classList.toggle('dimmed', !secili && d.tepsidekiSayi === 0);
+
+    // 1-Dokunuş Yeşil Teslim Et Şeridi (parmağı ekranın üstüne uzatmaya gerek kalmaz!)
+    const yeniTeslimAnahtari = d.evre === 'AKTIF'
+      ? eslesenler.map(m => `${m.id}:${m.slot}:${m.siparisMetni}`).join('|')
+      : '';
+    if (yeniTeslimAnahtari !== sonTeslimAnahtari) {
+      sonTeslimAnahtari = yeniTeslimAnahtari;
+      elDeliverStrip.innerHTML = '';
+      for (const m of eslesenler) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'deliver-btn';
+        btn.textContent = `🛎️ TESLİM ET · ${m.siparisMetni}`;
+        btn.addEventListener('click', () => {
+          ses.uyandir();
+          if (cekirdek.durum().evre === 'AKTIF' && !duraklatKontrol.al()) {
+            titresim([15, 25, 25]);
+            cekirdek.komut('musteri', m.id);
+          }
+        });
+        elDeliverStrip.appendChild(btn);
+      }
+    }
+  }
+
+  function guncelle(anlikDurum, gercekDt) {
+    elDay.textContent = anlikDurum.sonsuzMod ? `Sonsuz · Gün ${anlikDurum.gun}` : `Gün ${anlikDurum.gun}`;
+    elWallet.textContent = `Kasa: ${anlikDurum.kasa} TL`;
+    const darEkran = window.innerWidth <= 768;
+    elEarnings.textContent = darEkran
+      ? `${anlikDurum.kazanc} / ${anlikDurum.hedef} TL`
+      : `Kazanç ${anlikDurum.kazanc} / Hedef ${anlikDurum.hedef} TL`;
+    const hedefYuzde = Math.min(100, Math.round((anlikDurum.kazanc / Math.max(1, anlikDurum.hedef)) * 100));
+    elGoalBar.style.width = `${hedefYuzde}%`;
+
+    const sn = Math.ceil(anlikDurum.kalanSure);
+    elTime.textContent = `${sn} sn`;
+    elTime.classList.toggle('time-warn', anlikDurum.evre === 'AKTIF' && sn <= 15);
+    elCleanCups.textContent = `${anlikDurum.temizBardakSayisi} / ${anlikDurum.toplamBardakKapasitesi}`;
+
+    dockVeTeslimGuncelle(anlikDurum);
+
+    if (anlikDurum.seri >= 2) {
+      elCombo.classList.remove('hidden');
+      const bonus = Math.min((anlikDurum.seri - 1) * AYARLAR.SERI_BONUS_ADIMI, AYARLAR.SERI_BONUS_UST_SINIR);
+      elCombo.textContent = `🔥 ${anlikDurum.seri}x Seri (+${bonus} TL)`;
+    } else {
+      elCombo.classList.add('hidden');
+    }
+
+    elStatusBar.innerHTML = durumCubuguMetni(anlikDurum);
+    rekorGuncelle(anlikDurum.gun, anlikDurum.toplamKampanyaKazanci);
+
+    if (uyariKalanSure > 0) {
+      uyariKalanSure -= gercekDt;
+      if (uyariKalanSure <= 0) {
+        elWarning.classList.remove('visible');
+      }
+    }
+
+    const dukkanAnahtari = `${anlikDurum.evre}|${anlikDurum.kasa}|${anlikDurum.yukseltmeler.join(',')}`;
+
+    if (anlikDurum.evre === 'GUN_BASI') {
+      panelStart.classList.remove('hidden');
+      startTitle.textContent = `Gün ${anlikDurum.gun} · Hedef ${anlikDurum.hedef} TL`;
+      startDesc.textContent = gunAciklamasiAl(anlikDurum.gun, anlikDurum.sonsuzMod);
+      const dukkanGoster = anlikDurum.kasa > 0 || anlikDurum.yukseltmeler.length > 0;
+      startShopWrap.classList.toggle('hidden', !dukkanGoster);
+      if (dukkanGoster && sonDukkanAnahtari !== dukkanAnahtari) {
+        dukkanIzgaraCiz(startShopGrid, startShopWallet, anlikDurum);
+        sonDukkanAnahtari = dukkanAnahtari;
+      }
+    } else {
+      panelStart.classList.add('hidden');
+    }
+
+    if (anlikDurum.evre === 'GUN_SONU') {
+      panelEnd.classList.remove('hidden');
+      endTitle.textContent = `Gün ${anlikDurum.gun} Özeti`;
+      sumEarnings.textContent = `${anlikDurum.kazanc} / ${anlikDurum.hedef} TL`;
+      sumOrders.textContent = `${anlikDurum.istatistikler.teslimEdilenSiparis}`;
+      sumCups.textContent = `${anlikDurum.istatistikler.teslimEdilenBardak}`;
+      sumStreak.textContent = `${anlikDurum.istatistikler.enYuksekSeri}x`;
+      sumEscaped.textContent = `${anlikDurum.istatistikler.kacanMusteri}`;
+      sumStale.textContent = `${anlikDurum.istatistikler.bayatBardak}`;
+
+      if (sonDukkanAnahtari !== dukkanAnahtari) {
+        dukkanIzgaraCiz(endShopGrid, endShopWallet, anlikDurum);
+        sonDukkanAnahtari = dukkanAnahtari;
+      }
+      btnDayEndAction.textContent = anlikDurum.hedefTuttuMu
+        ? `Gün ${anlikDurum.gun + 1}'e geç`
+        : 'Günü tekrarla';
+    } else {
+      panelEnd.classList.add('hidden');
+    }
+
+    if (anlikDurum.evre === 'BITIS') {
+      panelWin.classList.remove('hidden');
+      winTotalEarnings.textContent = `${anlikDurum.toplamKampanyaKazanci} TL`;
+      winLastOrders.textContent = `${anlikDurum.istatistikler.teslimEdilenSiparis}`;
+      winLastCups.textContent = `${anlikDurum.istatistikler.teslimEdilenBardak}`;
+      winLastStreak.textContent = `${anlikDurum.istatistikler.enYuksekSeri}x`;
+      if (sonDukkanAnahtari !== dukkanAnahtari) {
+        dukkanIzgaraCiz(winShopGrid, winShopWallet, anlikDurum);
+        sonDukkanAnahtari = dukkanAnahtari;
+      }
+    } else {
+      panelWin.classList.add('hidden');
+    }
+
+    // Müşteri Sipariş Balonları
+    const aktifMusteriIdleri = new Set(anlikDurum.musteriler.map(m => m.id));
+    for (const [mId, el] of balonElemanlari.entries()) {
+      if (!aktifMusteriIdleri.has(mId)) {
+        el.remove();
+        balonElemanlari.delete(mId);
+      }
+    }
+
+    for (const m of anlikDurum.musteriler) {
+      let balon = balonElemanlari.get(m.id);
+      if (!balon) {
+        balon = document.createElement('div');
+        balon.className = 'order-bubble';
+        const simgeler = m.istekler.map(k => bardakSimgesiHTML(k.ton, k.seker, k.limon)).join('');
+        const rozet = m.tip === 'VIP'
+          ? '<span class="guest-tag vip">👑 Müdavim</span>'
+          : (m.tip === 'ACELECI' ? '<span class="guest-tag aceleci">⚡ Aceleci</span>' : '');
+        balon.innerHTML = `
+          ${rozet}
+          <div class="bubble-icons">${simgeler}</div>
+          <div class="bubble-text">${m.siparisMetni}</div>
+          <div class="patience-track"><div class="patience-fill"></div></div>
+        `;
+        balon.addEventListener('click', (e) => {
+          e.stopPropagation();
+          ses.uyandir();
+          if (cekirdek.durum().evre === 'AKTIF' && !duraklatKontrol.al()) {
+            cekirdek.komut('musteri', m.id);
+          }
+        });
+        elBubbles.appendChild(balon);
+        balonElemanlari.set(m.id, balon);
+      }
+
+      balon.classList.toggle('tray-match', Boolean(m.tepsiEslesiyorMu));
+
+      const dolulukEl = balon.querySelector('.patience-fill');
+      if (dolulukEl) {
+        dolulukEl.style.width = `${(m.sabirOrani * 100).toFixed(1)}%`;
+        dolulukEl.style.backgroundColor = sabirRengi(m.sabirOrani);
+      }
+
+      const mKayit = gorunumEsleyici.musteriHaritasi.get(m.id);
+      if (mKayit) {
+        const kafaUstu = mKayit.grup.position.clone().add(new THREE.Vector3(0, 1.96, 0));
+        const ekran = ekranaIzdusur(kafaUstu);
+        balon.style.display = ekran.gorunur ? 'flex' : 'none';
+        const kenarPay = window.innerWidth <= 600 ? 54 : 74;
+        const sinirliX = Math.max(kenarPay, Math.min(window.innerWidth - kenarPay, ekran.x));
+        const sinirliY = Math.max(108, ekran.y);
+        balon.style.left = `${sinirliX}px`;
+        balon.style.top = `${sinirliY}px`;
+      }
+    }
+
+    // Ayrılan müşterilerin tepkileri
+    for (const [mId, tEl] of tepkiElemanlari.entries()) {
+      if (!gorunumEsleyici.musteriHaritasi.has(mId)) {
+        tEl.remove();
+        tepkiElemanlari.delete(mId);
+      }
+    }
+    for (const [mId, kayit] of gorunumEsleyici.musteriHaritasi.entries()) {
+      if (kayit.durum === 'CIKIYOR' && kayit.tepki) {
+        let tEl = tepkiElemanlari.get(mId);
+        if (!tEl) {
+          tEl = document.createElement('div');
+          tEl.className = 'reaction-badge';
+          tEl.textContent = kayit.tepki;
+          elBubbles.appendChild(tEl);
+          tepkiElemanlari.set(mId, tEl);
+        }
+        const kafaUstu = kayit.grup.position.clone().add(new THREE.Vector3(0, 1.98, 0));
+        const ekran = ekranaIzdusur(kafaUstu);
+        tEl.style.left = `${ekran.x}px`;
+        tEl.style.top = `${ekran.y}px`;
+      }
+    }
+
+    // Uçan yazılar
+    for (let i = ucanYazilar.length - 1; i >= 0; i--) {
+      const u = ucanYazilar[i];
+      u.yas += gercekDt;
+      u.konum.y += gercekDt * 0.65;
+      const ekran = ekranaIzdusur(u.konum);
+      u.el.style.left = `${ekran.x}px`;
+      u.el.style.top = `${ekran.y}px`;
+      u.el.style.opacity = `${Math.max(0, 1 - u.yas / u.omur)}`;
+      if (u.yas >= u.omur) {
+        u.el.remove();
+        ucanYazilar.splice(i, 1);
+      }
+    }
+  }
+
+  return {
+    uyariGoster,
+    ucanYaziEkle,
+    guncelle,
+    sesDegistir,
+    duraklatDegistir,
+    hizDegistir
+  };
+}
+
+/* ============================================================================
+ * 9. DÖNGÜ VE HIZ KONTROLÜ
+ * ============================================================================ */
+function oyunuBaslat() {
+  const container = document.getElementById('canvas-container');
+  const cekirdek = oyunCekirdegiOlustur();
+  const ses = sesMotoruOlustur();
+  const sahne = sahneInsaEt(container);
+  const gorunumEsleyici = gorunumEsleyiciOlustur(sahne, ses);
+
+  let hizIndex = 0;
+  const hizKontrol = {
+    al: () => AYARLAR.HIZ_CARPANLARI[hizIndex],
+    sonrakiHiz: () => {
+      hizIndex = (hizIndex + 1) % AYARLAR.HIZ_CARPANLARI.length;
+      return AYARLAR.HIZ_CARPANLARI[hizIndex];
+    },
+    sifirla: () => { hizIndex = 0; }
+  };
+
+  let duraklatildi = false;
+  const duraklatKontrol = {
+    al: () => duraklatildi,
+    ayarla: (v) => { duraklatildi = Boolean(v); },
+    degistir: () => { duraklatildi = !duraklatildi; return duraklatildi; }
+  };
+
+  const uiKatmani = arayuzKatmaniOlustur(sahne, cekirdek, gorunumEsleyici, hizKontrol, ses, duraklatKontrol);
+  girisKatmaniOlustur(sahne, cekirdek, ses, duraklatKontrol, {
+    sesDegistir: uiKatmani.sesDegistir,
+    duraklatDegistir: uiKatmani.duraklatDegistir,
+    hizDegistir: uiKatmani.hizDegistir
+  });
+
+  const ekranYenidenBoyutla = () => {
+    sahne.kameraUyarla(true);
+  };
+  window.addEventListener('resize', ekranYenidenBoyutla);
+  window.addEventListener('orientationchange', () => setTimeout(ekranYenidenBoyutla, 120));
+
+  let sonZaman = performance.now();
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      sonZaman = performance.now();
+    }
+  });
+
+  function dongu(simdi) {
+    requestAnimationFrame(dongu);
+
+    if (document.hidden) {
+      sonZaman = simdi;
+      return;
+    }
+
+    const hamDt = (simdi - sonZaman) / 1000;
+    sonZaman = simdi;
+
+    const gercekDt = Math.min(Math.max(0, hamDt), AYARLAR.DT_UST_SINIR);
+
+    if (!duraklatildi) {
+      const carpan = hizKontrol.al();
+      let kalanOyunDt = gercekDt * carpan;
+      while (kalanOyunDt > 1e-9) {
+        const adim = Math.min(kalanOyunDt, AYARLAR.DT_UST_SINIR);
+        cekirdek.ilerle(adim);
+        kalanOyunDt -= adim;
+      }
+    }
+
+    const yeniOlaylar = cekirdek.olaylar();
+    gorunumEsleyici.olaylariIsle(yeniOlaylar, uiKatmani);
+
+    const anlikDurum = cekirdek.durum();
+    sahne.controls.update();
+    gorunumEsleyici.guncelle(anlikDurum, duraklatildi ? 0 : gercekDt);
+    uiKatmani.guncelle(anlikDurum, duraklatildi ? 0 : gercekDt);
+    sahne.renderer.render(sahne.scene, sahne.camera);
+  }
+
+  requestAnimationFrame(dongu);
+}
+
+oyunuBaslat();
+</script>
+</body>
+</html>
