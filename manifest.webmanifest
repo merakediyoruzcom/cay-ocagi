@@ -1,0 +1,19 @@
+{
+  "name": "Çay Ocağı - 3D Çarşı İşletme Oyunu",
+  "short_name": "Çay Ocağı",
+  "description": "3D çarşı atmosferinde ince belli bardaklarla çay demle, limonlu/şekerli siparişleri askılı tepsiyle yetiştir, dükkânını büyüt!",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1c110a",
+  "theme_color": "#1c110a",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
